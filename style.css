@@ -29,10 +29,27 @@ header {
 
 .logo {
     font-family: 'Fredoka', sans-serif;
-    font-size: 5rem; /* Ajustado para mejor visualización receptiva */
+    font-size: 4rem;
     color: #ff3366;
     margin-bottom: 10px;
     text-shadow: 3px 3px 0px white;
+}
+
+.buscador-container {
+    max-width: 400px;
+    margin: 0 auto 15px auto;
+}
+
+.buscador-container input {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 25px;
+    border: 2px solid white;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1rem;
+    outline: none;
+    box-sizing: border-box;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
 nav.categorias-wrapper {
@@ -66,11 +83,11 @@ main {
     padding-bottom: 40px;
 }
 
-.tasa-bcv {
+.tasa-bcv-container {
     text-align: center;
     padding: 15px;
-    font-size: 1rem;
-    color: #777;
+    font-size: 1.1rem;
+    color: #555;
     font-weight: 600;
 }
 
@@ -93,6 +110,7 @@ main {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    position: relative;
 }
 
 .card img {
@@ -122,6 +140,40 @@ main {
     color: #888;
     margin: 0 0 10px 0;
     font-weight: 600;
+}
+
+/* Controles de Admin en Tarjetas (Ocultos por defecto) */
+.admin-card-controls {
+    display: none;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+body.admin-mode .admin-card-controls {
+    display: flex;
+    justify-content: center;
+}
+
+.btn-editar-card {
+    background-color: #ffa502;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: 'Fredoka', sans-serif;
+}
+
+.btn-eliminar-card {
+    background-color: #ff4757;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: 'Fredoka', sans-serif;
 }
 
 /* Selector de cantidad en tarjeta */
@@ -188,7 +240,6 @@ footer {
 
 .footer-info p { margin: 8px 0; font-weight: 600; font-size: 1.1rem; }
 
-/* Botón de Administración oculto por defecto para público general */
 #btn-admin {
     display: none !important;
     position: absolute;
@@ -203,7 +254,6 @@ footer {
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-/* Se muestra únicamente cuando la URL contiene #admin */
 body.admin-mode #btn-admin {
     display: block !important;
 }
@@ -224,7 +274,6 @@ body.admin-mode #btn-admin {
     font-weight: 700;
 }
 
-/* Panel Desplegable Carrito */
 .panel-carrito {
     position: fixed;
     bottom: 0;
@@ -245,7 +294,6 @@ body.admin-mode #btn-admin {
 .carrito-footer { padding: 20px; border-top: 1px solid #eee; background: #fffaf0; }
 .btn-whatsapp { background: #25d366; color: white; border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: 700; font-size: 1.1rem; cursor: pointer; font-family: 'Fredoka', sans-serif; }
 
-/* Modal con Scroll */
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; overflow-y: auto; padding: 30px 0; }
 .modal-content { background: white; margin: auto; padding: 25px; width: 90%; max-width: 450px; border-radius: 20px; text-align: center; border: 4px solid var(--pastel-pink); max-height: 85vh; overflow-y: auto; box-sizing: border-box; }
 .close { float: right; font-size: 2rem; cursor: pointer; color: #aaa; line-height: 1; }
@@ -255,13 +303,7 @@ body.admin-mode #btn-admin {
 #drop-zone { border: 3px dashed var(--pastel-blue); padding: 25px 10px; border-radius: 15px; cursor: pointer; margin: 15px 0; background: #f0f8ff; color: #555; font-weight: 600; }
 .btn-guardar { background: var(--pastel-green); color: white; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 1.2rem; cursor: pointer; font-family: 'Fredoka', sans-serif; font-weight: 700; margin-top: 10px; }
 
-/* --- CSS ADAPTATIVO PARA MÓVIL --- */
 @media (max-width: 480px) {
-    .logo {
-        font-size: 3.5rem;
-    }
-    .grid-productos {
-        grid-template-columns: 1fr;
-        padding: 10px;
-    }
+    .logo { font-size: 3.5rem; }
+    .grid-productos { grid-template-columns: 1fr; padding: 10px; }
 }
