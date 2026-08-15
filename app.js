@@ -5,7 +5,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let carrito = [];
 let productosTotales = [];
 let categoriasDinamicas = ['Ferretería', 'Papelería', 'Juguetería'];
-let TASA_BCV = 771.00; // Tasa actualizada por defecto
+let TASA_BCV = 771.00;
 
 async function cargarDatos() {
     const { data: productos, error } = await supabaseClient
@@ -92,7 +92,6 @@ function renderizarProductos(productos) {
                     <p class="precio-bs">Bs ${precioBs}</p>
                 </div>
                 <div>
-                    <!-- Botones de administración (Editar / Eliminar) visibles solo en #admin -->
                     <div class="admin-card-controls">
                         <button class="btn-editar-card" onclick="abrirModalEditar(${prod.id}, '${nombreSeguro}', ${prod.precio}, '${prod.categoria}', '${prod.imagen}')">Editar</button>
                         <button class="btn-eliminar-card" onclick="eliminarProducto(${prod.id})">Eliminar</button>
@@ -110,7 +109,6 @@ function renderizarProductos(productos) {
     });
 }
 
-// Buscador instantáneo de productos
 function buscarProductos(texto) {
     const query = texto.toLowerCase().trim();
     if (query === '') {
@@ -197,7 +195,7 @@ function eliminarItem(index) {
 }
 
 function filtrarCategoria(categoria) {
-    document.getElementById('input-buscador').value = ''; // Limpiar buscador al filtrar por categoría
+    document.getElementById('input-buscador').value = '';
     if (categoria === 'Todos') {
         renderizarProductos(productosTotales);
     } else {
@@ -212,6 +210,8 @@ function enviarPedidoWhatsApp() {
         return;
     }
 
+    const metodoPagoSeleccionado = document.getElementById('metodo-pago-select').value;
+
     let mensaje = 'Hola *DITICO*, quiero hacer el siguiente pedido:%0A%0A';
     let totalUsd = 0;
 
@@ -224,13 +224,13 @@ function enviarPedidoWhatsApp() {
     let totalBs = (totalUsd * TASA_BCV).toFixed(2);
     mensaje += `%0A*Total USD:* $${totalUsd.toFixed(2)}`;
     mensaje += `%0A*Total Bs:* Bs ${totalBs}`;
-    mensaje += `%0A%0AIndícame los datos para realizar el pago (Pago Móvil / Divisas / Bolívares).`;
+    mensaje += `%0A*Método de pago seleccionado:* ${metodoPagoSeleccionado}`;
+    mensaje += `%0A%0AIndícame los datos necesarios para proceder con el cobro.`;
 
     const telefono = '584241191218'; 
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank');
 }
 
-// LÓGICA DEL MODAL (CREAR / EDITAR)
 let base64Imagen = '';
 
 function abrirModal() {
@@ -333,7 +333,6 @@ async function guardarProducto() {
     }
 
     if (id) {
-        // Actualizar existente
         const { error } = await supabaseClient
             .from('productos')
             .update({ nombre, precio, categoria, imagen: base64Imagen })
@@ -346,7 +345,6 @@ async function guardarProducto() {
             cargarDatos();
         }
     } else {
-        // Insertar nuevo
         const { error } = await supabaseClient
             .from('productos')
             .insert([{ nombre, precio, categoria, imagen: base64Imagen }]);
