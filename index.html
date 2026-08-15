@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DITICO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Pacifico&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">DITICO</div>
+        <nav id="menu-categorias">
+            <button onclick="filtrarCategoria('Todos')">Todos</button>
+        </nav>
+    </header>
+
+    <main>
+        <div class="tasa-bcv">Nota: Los precios en Bolívares son equivalentes a la tasa BCV del día.</div>
+        <div id="contenedor-productos" class="grid-productos"></div>
+    </main>
+
+    <footer>
+        <div class="footer-logo">DITICO</div>
+        <div class="footer-info">
+            <p>📞 +58 424 119 1218</p>
+            <p>💳 Métodos de Pago: PAGO MÓVIL | DIVISAS | BOLÍVARES</p>
+        </div>
+        <button id="btn-admin" onclick="abrirModal()">⚙️</button>
+    </footer>
+
+    <!-- Carrito Flotante y Panel Desplegable -->
+    <div id="carrito-flotante" onclick="togglePanelCarrito()">
+        🛒 <span id="contador-carrito">0</span>
+    </div>
+
+    <div id="panel-carrito" class="panel-carrito">
+        <div class="carrito-header">
+            <h3>Tu Carrito</h3>
+            <span onclick="togglePanelCarrito()" style="cursor:pointer; font-size: 1.5rem;">&times;</span>
+        </div>
+        <div id="lista-carrito-items"></div>
+        <div class="carrito-footer">
+            <button onclick="enviarPedidoWhatsApp()" class="btn-whatsapp">Enviar pedido por WhatsApp</button>
+        </div>
+    </div>
+
+    <!-- Modal de Administración -->
+    <div id="modal-admin" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarModal()">&times;</span>
+            <h2>Agregar Producto</h2>
+            <input type="text" id="nuevo-nombre" placeholder="Nombre del producto">
+            <input type="number" id="nuevo-precio" placeholder="Precio en USD ($)">
+            
+            <div class="grupo-categoria">
+                <select id="nuevo-categoria"></select>
+                <button type="button" onclick="crearNuevaCategoria()" class="btn-cat-nueva">Nueva +</button>
+            </div>
+            
+            <div id="drop-zone">
+                <p>Arrastra una imagen, pega con <b>Ctrl+V</b> o haz clic aquí.</p>
+                <input type="file" id="file-input" accept="image/*" hidden>
+                <img id="preview-img" style="display:none; max-width:100%; margin-top:10px; border-radius: 8px;">
+            </div>
+
+            <button class="btn-guardar" onclick="guardarProducto()">Guardar Producto</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
