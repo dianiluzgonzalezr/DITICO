@@ -11,13 +11,26 @@
 <body>
     <header>
         <div class="logo">DITICO</div>
+        
+        <!-- Buscador para clientes -->
+        <div class="buscador-container">
+            <input type="text" id="input-buscador" placeholder="🔍 ¿Qué producto estás buscando?" oninput="buscarProductos(this.value)">
+        </div>
+
         <nav id="menu-categorias" class="categorias-wrapper">
             <button onclick="filtrarCategoria('Todos')">Todos</button>
         </nav>
     </header>
 
     <main>
-        <div class="tasa-bcv">Nota: Los precios en Bolívares son equivalentes a la tasa BCV del día.</div>
+        <div class="tasa-bcv-container">
+            <span id="texto-tasa-bcv">Tasa BCV: Bs 771.00</span>
+            <!-- Panel de cambio de tasa visible solo en admin-mode -->
+            <div id="admin-tasa-panel" style="display:none; margin-top:5px;">
+                <input type="number" id="input-nueva-tasa" step="0.01" value="771.00" style="width:100px; padding:4px;">
+                <button onclick="actualizarTasaBCV()" class="btn-cat-nueva" style="padding:4px 10px; height:auto;">Actualizar Tasa</button>
+            </div>
+        </div>
         <div id="contenedor-productos" class="grid-productos"></div>
     </main>
 
@@ -27,7 +40,6 @@
             <p>📞 +58 424 119 1218</p>
             <p>💳 Métodos de Pago: PAGO MÓVIL | DIVISAS | BOLÍVARES</p>
         </div>
-        <!-- Botón de administración oculto por defecto -->
         <button id="btn-admin" onclick="abrirModal()">⚙️</button>
     </footer>
 
@@ -47,13 +59,14 @@
         </div>
     </div>
 
-    <!-- Modal de Administración -->
+    <!-- Modal de Administración (Agregar / Editar) -->
     <div id="modal-admin" class="modal">
         <div class="modal-content">
             <span class="close" onclick="cerrarModal()">&times;</span>
-            <h2>Agregar Producto</h2>
+            <h2 id="modal-titulo">Agregar Producto</h2>
+            <input type="hidden" id="edit-id">
             <input type="text" id="nuevo-nombre" placeholder="Nombre del producto">
-            <input type="number" id="nuevo-precio" placeholder="Precio en USD ($)">
+            <input type="number" id="nuevo-precio" step="0.01" placeholder="Precio en USD ($)">
             
             <div class="grupo-categoria">
                 <select id="nuevo-categoria"></select>
@@ -66,7 +79,7 @@
                 <img id="preview-img" style="display:none; max-width:100%; margin-top:10px; border-radius: 8px;">
             </div>
 
-            <button class="btn-guardar" onclick="guardarProducto()">Guardar Producto</button>
+            <button class="btn-guardar" id="btn-accion-guardar" onclick="guardarProducto()">Guardar Producto</button>
         </div>
     </div>
 
@@ -77,13 +90,15 @@
         document.addEventListener("DOMContentLoaded", function() {
             function verificarAccesoAdmin() {
                 const botonAdmin = document.getElementById("btn-admin");
+                const adminTasaPanel = document.getElementById("admin-tasa-panel");
                 if (window.location.hash === "#admin") {
                     document.body.classList.add("admin-mode");
                     if (botonAdmin) botonAdmin.style.display = "block";
-                    console.log("Modo Administrador activado mediante URL.");
+                    if (adminTasaPanel) adminTasaPanel.style.display = "block";
                 } else {
                     document.body.classList.remove("admin-mode");
                     if (botonAdmin) botonAdmin.style.display = "none";
+                    if (adminTasaPanel) adminTasaPanel.style.display = "none";
                 }
             }
 
