@@ -11,7 +11,7 @@
 <body>
     <header>
         <div class="logo">DITICO</div>
-        <nav id="menu-categorias">
+        <nav id="menu-categorias" class="categorias-wrapper">
             <button onclick="filtrarCategoria('Todos')">Todos</button>
         </nav>
     </header>
@@ -27,6 +27,7 @@
             <p>📞 +58 424 119 1218</p>
             <p>💳 Métodos de Pago: PAGO MÓVIL | DIVISAS | BOLÍVARES</p>
         </div>
+        <!-- Botón de administración oculto por defecto -->
         <button id="btn-admin" onclick="abrirModal()">⚙️</button>
     </footer>
 
@@ -70,5 +71,25 @@
     </div>
 
     <script src="app.js"></script>
+
+    <!-- Script de Activación por URL Hash (#admin) -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            function verificarAccesoAdmin() {
+                const botonAdmin = document.getElementById("btn-admin");
+                if (window.location.hash === "#admin") {
+                    document.body.classList.add("admin-mode");
+                    if (botonAdmin) botonAdmin.style.display = "block";
+                    console.log("Modo Administrador activado mediante URL.");
+                } else {
+                    document.body.classList.remove("admin-mode");
+                    if (botonAdmin) botonAdmin.style.display = "none";
+                }
+            }
+
+            verificarAccesoAdmin();
+            window.addEventListener('hashchange', verificarAccesoAdmin);
+        });
+    </script>
 </body>
 </html>
