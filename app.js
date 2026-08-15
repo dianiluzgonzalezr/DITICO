@@ -33,9 +33,9 @@ function actualizarTasaBCV() {
     const valor = parseFloat(inputTasa.value);
     if (!isNaN(valor) && valor > 0) {
         TASA_BCV = valor;
-        document.getElementById('texto-tasa-bcv').innerText = `Tasa BCV: Bs ${TASA_BCV.toFixed(2)}`;
+        document.getElementById('texto-tasa-bcv').innerText = `Tasa: Bs ${TASA_BCV.toFixed(2)}`;
         renderizarProductos(productosTotales);
-        alert('Tasa BCV actualizada correctamente.');
+        alert('Tasa actualizada correctamente.');
     } else {
         alert('Ingresa una tasa válida.');
     }
