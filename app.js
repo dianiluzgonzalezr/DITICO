@@ -225,7 +225,7 @@ function enviarPedidoWhatsApp() {
     mensaje += `%0A*Total USD:* $${totalUsd.toFixed(2)}`;
     mensaje += `%0A*Total Bs:* Bs ${totalBs}`;
     mensaje += `%0A*Método de pago seleccionado:* ${metodoPagoSeleccionado}`;
-    mensaje += `%0A%0AIndícame los datos necesarios para proceder con el cobro.`;
+    mensaje += `%0A%0AIndícame cómo agendar el pedido.`;
 
     const telefono = '584241191218'; 
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank');
