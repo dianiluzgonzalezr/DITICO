@@ -20,7 +20,6 @@ async function cargarDatos() {
     
     productosTotales = productos;
     
-    // Extraer categorías únicas de la base de datos + predeterminadas
     const catsBD = [...new Set(productos.map(p => p.categoria))];
     catsBD.forEach(c => { if(c && !categoriasDinamicas.includes(c)) categoriasDinamicas.push(c); });
 
@@ -74,11 +73,11 @@ function renderizarProductos(productos) {
                 </div>
                 <div>
                     <div class="selector-cantidad">
-                        <button onclick="cambiarCantLocal('${prod.nombre}', -1)">-</button>
+                        <button onclick="cambiarCantLocal('${prod.nombre.replace(/['"]+/g, '')}', -1)">-</button>
                         <span id="cant-${prod.nombre.replace(/\s+/g, '')}">1</span>
-                        <button onclick="cambiarCantLocal('${prod.nombre}', 1)">+</button>
+                        <button onclick="cambiarCantLocal('${prod.nombre.replace(/['"]+/g, '')}', 1)">+</button>
                     </div>
-                    <button class="btn-agregar" onclick="agregarAlCarritoConCantidad('${prod.nombre}', ${prod.precio})">Agregar</button>
+                    <button class="btn-agregar" onclick="agregarAlCarritoConCantidad('${prod.nombre.replace(/['"]+/g, '')}', ${prod.precio})">Agregar</button>
                 </div>
             </div>
         `;
@@ -88,6 +87,7 @@ function renderizarProductos(productos) {
 function cambiarCantLocal(nombre, cambio) {
     const idSpan = `cant-${nombre.replace(/\s+/g, '')}`;
     const span = document.getElementById(idSpan);
+    if (!span) return;
     let actual = parseInt(span.innerText) + cambio;
     if (actual < 1) actual = 1;
     span.innerText = actual;
@@ -95,7 +95,8 @@ function cambiarCantLocal(nombre, cambio) {
 
 function agregarAlCarritoConCantidad(nombre, precio) {
     const idSpan = `cant-${nombre.replace(/\s+/g, '')}`;
-    const cantidad = parseInt(document.getElementById(idSpan).innerText);
+    const span = document.getElementById(idSpan);
+    const cantidad = span ? parseInt(span.innerText) : 1;
     
     const index = carrito.findIndex(item => item.nombre === nombre);
     if (index > -1) {
@@ -104,7 +105,7 @@ function agregarAlCarritoConCantidad(nombre, precio) {
         carrito.push({ nombre, precio, cantidad });
     }
     actualizarContadorCarrito();
-    document.getElementById(idSpan).innerText = '1'; // Resetear selector
+    if (span) span.innerText = '1';
 }
 
 function actualizarContadorCarrito() {
