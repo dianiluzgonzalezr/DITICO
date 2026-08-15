@@ -5,7 +5,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let carrito = [];
 let productosTotales = [];
 let categoriasDinamicas = ['Ferretería', 'Papelería', 'Juguetería'];
-const TASA_BCV = 40.50;
+let TASA_BCV = 771.00; // Tasa actualizada por defecto
 
 async function cargarDatos() {
     const { data: productos, error } = await supabaseClient
@@ -26,6 +26,19 @@ async function cargarDatos() {
     actualizarMenuCategorias();
     actualizarSelectModal();
     renderizarProductos(productosTotales);
+}
+
+function actualizarTasaBCV() {
+    const inputTasa = document.getElementById('input-nueva-tasa');
+    const valor = parseFloat(inputTasa.value);
+    if (!isNaN(valor) && valor > 0) {
+        TASA_BCV = valor;
+        document.getElementById('texto-tasa-bcv').innerText = `Tasa BCV: Bs ${TASA_BCV.toFixed(2)}`;
+        renderizarProductos(productosTotales);
+        alert('Tasa BCV actualizada correctamente.');
+    } else {
+        alert('Ingresa una tasa válida.');
+    }
 }
 
 function actualizarMenuCategorias() {
@@ -61,8 +74,15 @@ function renderizarProductos(productos) {
     const contenedor = document.getElementById('contenedor-productos');
     contenedor.innerHTML = '';
 
+    if (productos.length === 0) {
+        contenedor.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#888;">No se encontraron productos.</p>';
+        return;
+    }
+
     productos.forEach(prod => {
         const precioBs = (prod.precio * TASA_BCV).toFixed(2);
+        const nombreSeguro = prod.nombre.replace(/'/g, "\\'");
+        
         contenedor.innerHTML += `
             <div class="card">
                 <div>
@@ -72,16 +92,33 @@ function renderizarProductos(productos) {
                     <p class="precio-bs">Bs ${precioBs}</p>
                 </div>
                 <div>
-                    <div class="selector-cantidad">
-                        <button onclick="cambiarCantLocal('${prod.nombre.replace(/['"]+/g, '')}', -1)">-</button>
-                        <span id="cant-${prod.nombre.replace(/\s+/g, '')}">1</span>
-                        <button onclick="cambiarCantLocal('${prod.nombre.replace(/['"]+/g, '')}', 1)">+</button>
+                    <!-- Botones de administración (Editar / Eliminar) visibles solo en #admin -->
+                    <div class="admin-card-controls">
+                        <button class="btn-editar-card" onclick="abrirModalEditar(${prod.id}, '${nombreSeguro}', ${prod.precio}, '${prod.categoria}', '${prod.imagen}')">Editar</button>
+                        <button class="btn-eliminar-card" onclick="eliminarProducto(${prod.id})">Eliminar</button>
                     </div>
-                    <button class="btn-agregar" onclick="agregarAlCarritoConCantidad('${prod.nombre.replace(/['"]+/g, '')}', ${prod.precio})">Agregar</button>
+
+                    <div class="selector-cantidad">
+                        <button onclick="cambiarCantLocal('${nombreSeguro}', -1)">-</button>
+                        <span id="cant-${prod.nombre.replace(/\s+/g, '')}">1</span>
+                        <button onclick="cambiarCantLocal('${nombreSeguro}', 1)">+</button>
+                    </div>
+                    <button class="btn-agregar" onclick="agregarAlCarritoConCantidad('${nombreSeguro}', ${prod.precio})">Agregar</button>
                 </div>
             </div>
         `;
     });
+}
+
+// Buscador instantáneo de productos
+function buscarProductos(texto) {
+    const query = texto.toLowerCase().trim();
+    if (query === '') {
+        renderizarProductos(productosTotales);
+        return;
+    }
+    const filtrados = productosTotales.filter(p => p.nombre.toLowerCase().includes(query) || (p.categoria && p.categoria.toLowerCase().includes(query)));
+    renderizarProductos(filtrados);
 }
 
 function cambiarCantLocal(nombre, cambio) {
@@ -160,6 +197,7 @@ function eliminarItem(index) {
 }
 
 function filtrarCategoria(categoria) {
+    document.getElementById('input-buscador').value = ''; // Limpiar buscador al filtrar por categoría
     if (categoria === 'Todos') {
         renderizarProductos(productosTotales);
     } else {
@@ -192,10 +230,41 @@ function enviarPedidoWhatsApp() {
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank');
 }
 
-// LÓGICA DEL MODAL
+// LÓGICA DEL MODAL (CREAR / EDITAR)
 let base64Imagen = '';
-function abrirModal() { document.getElementById('modal-admin').style.display = 'block'; }
-function cerrarModal() { document.getElementById('modal-admin').style.display = 'none'; resetearFormulario(); }
+
+function abrirModal() {
+    document.getElementById('edit-id').value = '';
+    document.getElementById('modal-titulo').innerText = 'Agregar Producto';
+    document.getElementById('btn-accion-guardar').innerText = 'Guardar Producto';
+    document.getElementById('nuevo-nombre').value = '';
+    document.getElementById('nuevo-precio').value = '';
+    base64Imagen = '';
+    previewImg.style.display = 'none';
+    dropZone.querySelector('p').style.display = 'block';
+    document.getElementById('modal-admin').style.display = 'block';
+}
+
+function abrirModalEditar(id, nombre, precio, categoria, imagen) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('modal-titulo').innerText = 'Editar Producto';
+    document.getElementById('btn-accion-guardar').innerText = 'Actualizar Producto';
+    document.getElementById('nuevo-nombre').value = nombre;
+    document.getElementById('nuevo-precio').value = precio;
+    document.getElementById('nuevo-categoria').value = categoria;
+    
+    base64Imagen = imagen;
+    previewImg.src = imagen;
+    previewImg.style.display = 'block';
+    dropZone.querySelector('p').style.display = 'none';
+    
+    document.getElementById('modal-admin').style.display = 'block';
+}
+
+function cerrarModal() { 
+    document.getElementById('modal-admin').style.display = 'none'; 
+    resetearFormulario(); 
+}
 
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
@@ -253,28 +322,61 @@ function procesarArchivo(file) {
 }
 
 async function guardarProducto() {
+    const id = document.getElementById('edit-id').value;
     const nombre = document.getElementById('nuevo-nombre').value;
     const precio = parseFloat(document.getElementById('nuevo-precio').value);
     const categoria = document.getElementById('nuevo-categoria').value;
 
     if (!nombre || isNaN(precio) || !base64Imagen) {
-        alert('Por favor, llena el nombre, el precio válido y sube una imagen.');
+        alert('Por favor, llena el nombre, el precio válido y asegúrate de tener una imagen.');
         return;
     }
 
-    const { error } = await supabaseClient
-        .from('productos')
-        .insert([{ nombre, precio, categoria, imagen: base64Imagen }]);
+    if (id) {
+        // Actualizar existente
+        const { error } = await supabaseClient
+            .from('productos')
+            .update({ nombre, precio, categoria, imagen: base64Imagen })
+            .eq('id', id);
 
-    if (error) {
-        alert('Hubo un error al guardar: ' + error.message);
+        if (error) {
+            alert('Error al actualizar: ' + error.message);
+        } else {
+            cerrarModal();
+            cargarDatos();
+        }
     } else {
-        cerrarModal();
-        cargarDatos();
+        // Insertar nuevo
+        const { error } = await supabaseClient
+            .from('productos')
+            .insert([{ nombre, precio, categoria, imagen: base64Imagen }]);
+
+        if (error) {
+            alert('Hubo un error al guardar: ' + error.message);
+        } else {
+            cerrarModal();
+            cargarDatos();
+        }
+    }
+}
+
+async function eliminarProducto(id) {
+    if (confirm('¿Estás segura de que deseas eliminar este producto?')) {
+        const { error } = await supabaseClient
+            .from('productos')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            alert('Error al eliminar: ' + error.message);
+        } else {
+            cargarDatos();
+        }
     }
 }
 
 function resetearFormulario() {
+    document.getElementById('edit-id').value = '';
     document.getElementById('nuevo-nombre').value = '';
     document.getElementById('nuevo-precio').value = '';
     base64Imagen = '';
