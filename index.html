@@ -12,7 +12,6 @@
     <header>
         <div class="logo">DITICO</div>
         
-        <!-- Buscador para clientes -->
         <div class="buscador-container">
             <input type="text" id="input-buscador" placeholder="🔍 ¿Qué producto estás buscando?" oninput="buscarProductos(this.value)">
         </div>
@@ -25,7 +24,6 @@
     <main>
         <div class="tasa-bcv-container">
             <span id="texto-tasa-bcv">Tasa BCV: Bs 771.00</span>
-            <!-- Panel de cambio de tasa visible solo en admin-mode -->
             <div id="admin-tasa-panel" style="display:none; margin-top:5px;">
                 <input type="number" id="input-nueva-tasa" step="0.01" value="771.00" style="width:100px; padding:4px;">
                 <button onclick="actualizarTasaBCV()" class="btn-cat-nueva" style="padding:4px 10px; height:auto;">Actualizar Tasa</button>
@@ -55,6 +53,15 @@
         </div>
         <div id="lista-carrito-items"></div>
         <div class="carrito-footer">
+            <!-- Selector de Método de Pago -->
+            <div class="pago-selector-container">
+                <label for="metodo-pago-select"><strong>Método de pago preferido:</strong></label>
+                <select id="metodo-pago-select">
+                    <option value="Pago Móvil">Pago Móvil</option>
+                    <option value="Divisas (Efectivo/Zelle)">Divisas (Efectivo / Zelle)</option>
+                    <option value="Bolívares (Efectivo/Transferencia)">Bolívares (Efectivo / Transferencia)</option>
+                </select>
+            </div>
             <button onclick="enviarPedidoWhatsApp()" class="btn-whatsapp">Enviar pedido por WhatsApp</button>
         </div>
     </div>
@@ -85,7 +92,6 @@
 
     <script src="app.js"></script>
 
-    <!-- Script de Activación por URL Hash (#admin) -->
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             function verificarAccesoAdmin() {
