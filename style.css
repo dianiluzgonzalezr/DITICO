@@ -330,3 +330,31 @@ body.admin-mode #btn-admin {
     .logo { font-size: 3.5rem; }
     .grid-productos { grid-template-columns: 1fr; padding: 10px; }
 }
+
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.toast {
+    background: #333;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-family: 'Fredoka', sans-serif;
+    animation: fadeInOut 3s forwards;
+    max-width: 300px;
+}
+.toast.error { background: #ff4757; }
+.toast.success { background: #2ed573; color: #111; }
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-10px); }
+    15% { opacity: 1; transform: translateY(0); }
+    85% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-10px); }
+}
