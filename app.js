@@ -35,9 +35,9 @@ function actualizarTasaBCV() {
         TASA_BCV = valor;
         document.getElementById('texto-tasa-bcv').innerText = `Tasa: Bs ${TASA_BCV.toFixed(2)}`;
         renderizarProductos(productosTotales);
-        alert('Tasa actualizada correctamente.');
+        mostrarNotificacion('Tasa actualizada correctamente.');
     } else {
-        alert('Ingresa una tasa válida.');
+        mostrarNotificacion('Ingresa una tasa válida.');
     }
 }
 
@@ -206,7 +206,7 @@ function filtrarCategoria(categoria) {
 
 function enviarPedidoWhatsApp() {
     if (carrito.length === 0) {
-        alert('El carrito está vacío');
+        mostrarNotificacion('El carrito está vacío');
         return;
     }
 
@@ -217,21 +217,29 @@ function enviarPedidoWhatsApp() {
 
     carrito.forEach(item => {
         let sub = item.precio * item.cantidad;
-        mensaje += `🛍️ ${item.nombre} (${item.cantidad} unid) - $${sub.toFixed(2)}%0A`;
+        mensaje += `🛍️ *${item.nombre}* (${item.cantidad} unid) - $${sub.toFixed(2)}%0A`;
+        
+        // Buscar el producto para adjuntar el link de la imagen pública de Supabase Storage
+        const prodOriginal = productosTotales.find(p => p.nombre === item.nombre);
+        if (prodOriginal && prodOriginal.imagen) {
+            mensaje += `🖼️ Ver foto: ${prodOriginal.imagen}%0A`;
+        }
+        mensaje += `%0A`;
         totalUsd += sub;
     });
 
     let totalBs = (totalUsd * TASA_BCV).toFixed(2);
-    mensaje += `%0A*Total USD:* $${totalUsd.toFixed(2)}`;
+    mensaje += `*Total USD:* $${totalUsd.toFixed(2)}`;
     mensaje += `%0A*Total Bs:* Bs ${totalBs}`;
     mensaje += `%0A*Método de pago seleccionado:* ${metodoPagoSeleccionado}`;
-    mensaje += `%0A%0AIndícame cómo agendar el pedido.`;
+    mensaje += `%0A%0AIndícame los datos necesarios para proceder.`;
 
     const telefono = '584241191218'; 
     window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank');
 }
 
-let base64Imagen = '';
+let imagenActualUrl = '';
+let archivoImagenSeleccionado = null;
 
 function abrirModal() {
     document.getElementById('edit-id').value = '';
@@ -239,7 +247,8 @@ function abrirModal() {
     document.getElementById('btn-accion-guardar').innerText = 'Guardar Producto';
     document.getElementById('nuevo-nombre').value = '';
     document.getElementById('nuevo-precio').value = '';
-    base64Imagen = '';
+    imagenActualUrl = '';
+    archivoImagenSeleccionado = null;
     previewImg.style.display = 'none';
     dropZone.querySelector('p').style.display = 'block';
     document.getElementById('modal-admin').style.display = 'block';
@@ -253,7 +262,8 @@ function abrirModalEditar(id, nombre, precio, categoria, imagen) {
     document.getElementById('nuevo-precio').value = precio;
     document.getElementById('nuevo-categoria').value = categoria;
     
-    base64Imagen = imagen;
+    imagenActualUrl = imagen;
+    archivoImagenSeleccionado = null;
     previewImg.src = imagen;
     previewImg.style.display = 'block';
     dropZone.querySelector('p').style.display = 'none';
@@ -300,46 +310,61 @@ window.addEventListener('paste', (e) => {
 });
 
 function procesarArchivo(file) {
+    archivoImagenSeleccionado = file;
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
-        const img = new Image();
-        img.src = reader.result;
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 600;
-            const scaleSize = MAX_WIDTH / img.width;
-            canvas.width = MAX_WIDTH;
-            canvas.height = img.height * scaleSize;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            base64Imagen = canvas.toDataURL('image/jpeg', 0.6);
-            previewImg.src = base64Imagen;
-            previewImg.style.display = 'block';
-            dropZone.querySelector('p').style.display = 'none';
-        }
+        previewImg.src = reader.result;
+        previewImg.style.display = 'block';
+        dropZone.querySelector('p').style.display = 'none';
     };
 }
 
 async function guardarProducto() {
     const id = document.getElementById('edit-id').value;
     const nombre = document.getElementById('nuevo-nombre').value;
-    const precio = parseFloat(document.getElementById('nuevo-precio').value);
+    const precioInput = document.getElementById('nuevo-precio').value.replace(',', '.');
+    const precio = parseFloat(precioInput);
     const categoria = document.getElementById('nuevo-categoria').value;
 
-    if (!nombre || isNaN(precio) || !base64Imagen) {
-        alert('Por favor, llena el nombre, el precio válido y asegúrate de tener una imagen.');
+    if (!nombre || isNaN(precio)) {
+        mostrarNotificacion('Por favor, llena el nombre y un precio válido.');
+        return;
+    }
+
+    let urlFinalImagen = imagenActualUrl;
+
+    if (archivoImagenSeleccionado) {
+        const nombreArchivo = `${Date.now()}_${archivoImagenSeleccionado.name.replace(/\s+/g, '_')}`;
+        const { error: uploadError } = await supabaseClient.storage
+            .from('productos')
+            .upload(nombreArchivo, archivoImagenSeleccionado);
+
+        if (uploadError) {
+            mostrarNotificacion('Error al subir la imagen al Storage: ' + uploadError.message);
+            return;
+        }
+
+        const { data: publicUrlData } = supabaseClient.storage
+            .from('productos')
+            .getPublicUrl(nombreArchivo);
+
+        urlFinalImagen = publicUrlData.publicUrl;
+    }
+
+    if (!urlFinalImagen) {
+        mostrarNotificacion('Asegúrate de agregar una imagen para el producto.');
         return;
     }
 
     if (id) {
         const { error } = await supabaseClient
             .from('productos')
-            .update({ nombre, precio, categoria, imagen: base64Imagen })
+            .update({ nombre, precio, categoria, imagen: urlFinalImagen })
             .eq('id', id);
 
         if (error) {
-            alert('Error al actualizar: ' + error.message);
+            mostrarNotificacion('Error al actualizar: ' + error.message);
         } else {
             cerrarModal();
             cargarDatos();
@@ -347,10 +372,10 @@ async function guardarProducto() {
     } else {
         const { error } = await supabaseClient
             .from('productos')
-            .insert([{ nombre, precio, categoria, imagen: base64Imagen }]);
+            .insert([{ nombre, precio, categoria, imagen: urlFinalImagen }]);
 
         if (error) {
-            alert('Hubo un error al guardar: ' + error.message);
+            mostrarNotificacion('Hubo un error al guardar: ' + error.message);
         } else {
             cerrarModal();
             cargarDatos();
@@ -366,7 +391,7 @@ async function eliminarProducto(id) {
             .eq('id', id);
 
         if (error) {
-            alert('Error al eliminar: ' + error.message);
+            mostrarNotificacion('Error al eliminar: ' + error.message);
         } else {
             cargarDatos();
         }
@@ -377,10 +402,25 @@ function resetearFormulario() {
     document.getElementById('edit-id').value = '';
     document.getElementById('nuevo-nombre').value = '';
     document.getElementById('nuevo-precio').value = '';
-    base64Imagen = '';
+    imagenActualUrl = '';
+    archivoImagenSeleccionado = null;
     previewImg.style.display = 'none';
     dropZone.querySelector('p').style.display = 'block';
     fileInput.value = '';
+}
+
+function mostrarNotificacion(mensaje, tipo = 'error') {
+    const contenedor = document.getElementById('toast-container');
+    if (!contenedor) return mostrarNotificacion(mensaje); // Fallback por seguridad
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${tipo}`;
+    toast.innerText = mensaje;
+    
+    contenedor.appendChild(toast);
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 
 cargarDatos();
