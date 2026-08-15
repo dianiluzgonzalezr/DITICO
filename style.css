@@ -29,20 +29,21 @@ header {
 
 .logo {
     font-family: 'Fredoka', sans-serif;
-    font-size: 10rem;
+    font-size: 5rem; /* Ajustado para mejor visualización receptiva */
     color: #ff3366;
     margin-bottom: 10px;
     text-shadow: 3px 3px 0px white;
 }
 
-nav {
+nav.categorias-wrapper {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
     gap: 8px;
+    padding: 5px;
 }
 
-nav button {
+nav.categorias-wrapper button {
     background-color: white;
     border: 3px solid var(--pastel-blue);
     border-radius: 25px;
@@ -55,7 +56,7 @@ nav button {
     transition: all 0.2s ease;
 }
 
-nav button:hover {
+nav.categorias-wrapper button:hover {
     background-color: var(--pastel-blue);
     color: white;
 }
@@ -187,17 +188,25 @@ footer {
 
 .footer-info p { margin: 8px 0; font-weight: 600; font-size: 1.1rem; }
 
+/* Botón de Administración oculto por defecto para público general */
 #btn-admin {
+    display: none !important;
     position: absolute;
     right: 20px;
     bottom: 20px;
-    background: transparent;
+    background: rgba(255, 255, 255, 0.8);
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-    opacity: 0.3;
+    padding: 8px 12px;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
-#btn-admin:hover { opacity: 1; }
+
+/* Se muestra únicamente cuando la URL contiene #admin */
+body.admin-mode #btn-admin {
+    display: block !important;
+}
 
 #carrito-flotante {
     position: fixed;
@@ -245,3 +254,14 @@ footer {
 .btn-cat-nueva { background: var(--pastel-purple); border: none; padding: 10px 15px; border-radius: 10px; font-weight: 700; color: white; cursor: pointer; white-space: nowrap; height: 46px; }
 #drop-zone { border: 3px dashed var(--pastel-blue); padding: 25px 10px; border-radius: 15px; cursor: pointer; margin: 15px 0; background: #f0f8ff; color: #555; font-weight: 600; }
 .btn-guardar { background: var(--pastel-green); color: white; border: none; padding: 15px; width: 100%; border-radius: 12px; font-size: 1.2rem; cursor: pointer; font-family: 'Fredoka', sans-serif; font-weight: 700; margin-top: 10px; }
+
+/* --- CSS ADAPTATIVO PARA MÓVIL --- */
+@media (max-width: 480px) {
+    .logo {
+        font-size: 3.5rem;
+    }
+    .grid-productos {
+        grid-template-columns: 1fr;
+        padding: 10px;
+    }
+}
