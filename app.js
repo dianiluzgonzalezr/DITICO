@@ -8,19 +8,31 @@ let categoriasDinamicas = ['Ferretería', 'Papelería', 'Juguetería'];
 let TASA_BCV = 771.00;
 
 async function cargarDatos() {
-    const { data: productos, error } = await supabaseClient
-        .from('productos')
-        .select('*')
-        .order('id', { ascending: false });
+    try {
+        const { data: productos, error } = await supabaseClient
+            .from('productos')
+            .select('*')
+            .order('id', { ascending: false });
 
-    if (error) {
-        console.log('Error al cargar:', error);
-        return;
+        if (error) throw error;
+        
+        productosTotales = productos;
+        // Guardar copia de seguridad local para cuando no haya internet
+        localStorage.setItem('ditico_productos', JSON.stringify(productos));
+
+    } catch (error) {
+        console.log('Sin conexión a Supabase. Cargando datos locales...', error);
+        const productosLocales = localStorage.getItem('ditico_productos');
+        if (productosLocales) {
+            productosTotales = JSON.parse(productosLocales);
+            mostrarNotificacion('Modo sin conexión: Mostrando datos guardados.', 'success');
+        } else {
+            productosTotales = [];
+            mostrarNotificacion('No hay internet ni datos guardados previamente.');
+        }
     }
     
-    productosTotales = productos;
-    
-    const catsBD = [...new Set(productos.map(p => p.categoria))];
+    const catsBD = [...new Set(productosTotales.map(p => p.categoria))];
     catsBD.forEach(c => { if(c && !categoriasDinamicas.includes(c)) categoriasDinamicas.push(c); });
 
     actualizarMenuCategorias();
