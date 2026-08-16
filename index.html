@@ -23,7 +23,7 @@
 
     <main>
         <div class="tasa-bcv-container">
-            <span id="texto-tasa-bcv">Tasa BCV: Bs 771.00</span>
+            <span id="texto-tasa-bcv">Tasa: Bs 771.00</span>
             <div id="admin-tasa-panel" style="display:none; margin-top:5px;">
                 <input type="number" id="input-nueva-tasa" step="0.01" value="771.00" style="width:100px; padding:4px;">
                 <button onclick="actualizarTasaBCV()" class="btn-cat-nueva" style="padding:4px 10px; height:auto;">Actualizar Tasa</button>
@@ -113,6 +113,18 @@
         });
     </script>
 
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
+                .catch(err => console.log('Error al registrar el Service Worker:', err));
+        });
+    }
+</script>
+
     <div id="toast-container"></div>
 </body>
+
+
 </html>
