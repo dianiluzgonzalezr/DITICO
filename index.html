@@ -66,29 +66,35 @@
         </div>
     </div>
 
-    <!-- Modal de Administración (Agregar / Editar) -->
-    <div id="modal-admin" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="cerrarModal()">&times;</span>
-            <h2 id="modal-titulo">Agregar Producto</h2>
-            <input type="hidden" id="edit-id">
-            <input type="text" id="nuevo-nombre" placeholder="Nombre del producto">
-            <input type="number" id="nuevo-precio" step="0.01" placeholder="Precio en USD ($)">
-            
-            <div class="grupo-categoria">
-                <select id="nuevo-categoria"></select>
-                <button type="button" onclick="crearNuevaCategoria()" class="btn-cat-nueva">Nueva +</button>
-            </div>
-            
-            <div id="drop-zone">
-                <p>Arrastra una imagen, pega con <b>Ctrl+V</b> o haz clic aquí.</p>
-                <input type="file" id="file-input" accept="image/*" hidden>
-                <img id="preview-img" style="display:none; max-width:100%; margin-top:10px; border-radius: 8px;">
-            </div>
-
-            <button class="btn-guardar" id="btn-accion-guardar" onclick="guardarProducto()">Guardar Producto</button>
+   <!-- Modal de Administración (Agregar / Editar) -->
+<div id="modal-admin" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="cerrarModal()">&times;</span>
+        <h2 id="modal-titulo">Agregar Producto</h2>
+        <input type="hidden" id="edit-id">
+        <input type="text" id="nuevo-nombre" placeholder="Nombre del producto">
+        
+        <!-- Precio detal y mayorista -->
+        <div style="display: flex; gap: 10px;">
+            <input type="number" id="nuevo-precio" step="0.01" placeholder="Precio USD ($)">
+            <input type="number" id="nuevo-precio-mayorista" step="0.01" placeholder="Precio Mayorista ($)">
         </div>
+        <input type="number" id="nueva-cant-min-mayorista" min="1" placeholder="Cantidad mínima para precio mayorista">
+        
+        <div class="grupo-categoria">
+            <select id="nuevo-categoria"></select>
+            <button type="button" onclick="crearNuevaCategoria()" class="btn-cat-nueva">Nueva +</button>
+        </div>
+        
+        <div id="drop-zone">
+            <p>Arrastra una imagen, pega con <b>Ctrl+V</b> o haz clic aquí.</p>
+            <input type="file" id="file-input" accept="image/*" hidden>
+            <img id="preview-img" style="display:none; max-width:100%; margin-top:10px; border-radius: 8px;">
+        </div>
+
+        <button class="btn-guardar" id="btn-accion-guardar" onclick="guardarProducto()">Guardar Producto</button>
     </div>
+</div>
 
     <script src="app.js"></script>
 
