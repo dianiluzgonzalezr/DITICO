@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DITICO</title>
+    <title>DITICO | Catálogo y pedidos</title>
+    <meta name="theme-color" content="#ff6b9a">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23ff6b9a'/%3E%3Ctext x='50' y='67' text-anchor='middle' font-size='54' font-family='Arial' font-weight='700' fill='white'%3ED%3C/text%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Pacifico&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,7 +14,7 @@
     <header>
         <div class="header-top">
             <div class="logo">DITICO</div>
-            <button id="btn-salir-admin" onclick="salirModoAdmin()" style="display:none;" class="btn-salir-admin">🔒 Salir Admin</button>
+            
         </div>
         
         <div class="buscador-container">
@@ -42,7 +44,11 @@
             <p>📞 +58 424 119 1218</p>
             <p>💳 Métodos de Pago: PAGO MÓVIL | DIVISAS | BOLÍVARES</p>
         </div>
-        <button id="btn-admin" onclick="abrirModal()">⚙️</button>
+        <div id="admin-toolbar" class="admin-toolbar" style="display:none;">
+            <span id="admin-user-label">Modo administrador</span>
+            <button type="button" onclick="abrirModal()" class="btn-admin-action">＋ Agregar producto</button>
+            <button type="button" onclick="cerrarSesionAdmin()" class="btn-admin-logout">Cerrar sesión</button>
+        </div>
     </footer>
 
     <!-- Carrito Flotante y Panel Desplegable -->
@@ -68,6 +74,28 @@
                 </select>
             </div>
             <button onclick="enviarPedidoWhatsApp()" class="btn-whatsapp">Enviar pedido por WhatsApp</button>
+        </div>
+    </div>
+
+    <!-- Login exclusivo para /#admin -->
+    <div id="modal-login" class="modal" aria-hidden="true">
+        <div class="modal-content login-content">
+            <button type="button" class="close close-button" onclick="cerrarLogin()" aria-label="Cerrar">&times;</button>
+            <div class="login-badge">Acceso protegido</div>
+            <h2>Panel de administración</h2>
+            <p class="login-help">Introduce tus credenciales para administrar el catálogo.</p>
+            <form id="form-login" novalidate>
+                <div class="form-group-admin">
+                    <label for="login-email">Correo electrónico</label>
+                    <input type="email" id="login-email" autocomplete="username" required placeholder="admin@tudominio.com">
+                </div>
+                <div class="form-group-admin">
+                    <label for="login-password">Contraseña</label>
+                    <input type="password" id="login-password" autocomplete="current-password" required placeholder="Tu contraseña">
+                </div>
+                <button type="submit" id="btn-login" class="btn-guardar">Iniciar sesión</button>
+            </form>
+            <p id="login-error" class="login-error" role="alert"></p>
         </div>
     </div>
 
@@ -118,14 +146,14 @@
                 <label><input type="checkbox" id="nuevo-destacado"> ⭐ Destacado</label>
             </div>
             
-            <div id="drop-zone">
+            <div id="drop-zone" role="button" tabindex="0" aria-label="Subir imagen del producto">
                 <p id="drop-zone-text">Arrastra una imagen, pega con <b>Ctrl+V</b> o haz clic aquí.</p>
                 <input type="file" id="file-input" accept="image/*" hidden>
                 <img id="preview-img" style="display:none; max-width:100%; margin-top:10px; border-radius: 8px;">
                 <div id="spinner-subida" style="display:none;" class="spinner">Subiendo imagen...</div>
             </div>
 
-            <button class="btn-guardar" id="btn-accion-guardar" onclick="guardarProducto()">Guardar Producto</button>
+            <button type="button" class="btn-guardar" id="btn-accion-guardar" onclick="guardarProducto()">Guardar Producto</button>
         </div>
     </div>
 
@@ -134,34 +162,7 @@
 
     <script src="app.js"></script>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            function verificarAccesoAdmin() {
-                const botonAdmin = document.getElementById("btn-admin");
-                const adminTasaPanel = document.getElementById("admin-tasa-panel");
-                const btnSalirAdmin = document.getElementById("btn-salir-admin");
-                
-                if (window.location.hash === "#admin") {
-                    document.body.classList.add("admin-mode");
-                    if (botonAdmin) botonAdmin.style.display = "block";
-                    if (adminTasaPanel) adminTasaPanel.style.display = "block";
-                    if (btnSalirAdmin) btnSalirAdmin.style.display = "inline-block";
-                } else {
-                    document.body.classList.remove("admin-mode");
-                    if (botonAdmin) botonAdmin.style.display = "none";
-                    if (adminTasaPanel) adminTasaPanel.style.display = "none";
-                    if (btnSalirAdmin) btnSalirAdmin.style.display = "none";
-                }
-            }
-
-            verificarAccesoAdmin();
-            window.addEventListener('hashchange', verificarAccesoAdmin);
-        });
-
-        function salirModoAdmin() {
-            window.location.hash = "";
-        }
-    </script>
+    
 
     <script>
         if ('serviceWorker' in navigator) {
