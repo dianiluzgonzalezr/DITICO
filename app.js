@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     cargarCategorias();
     cargarProductos();
     configurarDropZone();
+    cargarCarritoDeStorage();
 
     document.getElementById('form-login')?.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -427,11 +428,80 @@ function actualizarCarritoUI() {
         <div><span>Subtotal USD:</span> <b>$${totalUSD.toFixed(2)}</b></div>
         <div><span>Total estimado Bs:</span> <b>Bs ${totalBS.toFixed(2)}</b></div>
     `;
+
+    // Persistir el estado actualizado en el navegador
+    guardarCarritoEnStorage();
 }
 
 function togglePanelCarrito() {
     const panel = document.getElementById('panel-carrito');
     if (panel) panel.classList.toggle('activo');
+}
+
+// Cargar carrito guardado al iniciar
+function cargarCarritoGuardado() {
+    const guardado = localStorage.getItem('ditico_carrito');
+    if (guardado) {
+        try {
+            carrito = JSON.parse(guardado);
+            actualizarCarritoUI();
+        } catch (e) {
+            console.error("Error al cargar carrito guardado:", e);
+        }
+    }
+}
+
+// Guardar carrito en localStorage
+function guardarCarritoLocal() {
+    localStorage.setItem('ditico_carrito', JSON.stringify(carrito));
+}
+
+// Modificación en actualizarCarritoUI para incluir persistencia
+const _actualizarCarritoUIOriginal = actualizarCarritoUI;
+actualizarCarritoUI = function() {
+    _actualizarCarritoUIOriginal();
+    guardarCarritoLocal();
+};
+
+// Vaciado post-envío
+function vaciarCarrito() {
+    carrito = {};
+    actualizarCarritoUI();
+    renderizarProductos();
+    document.getElementById('cliente-nombre').value = '';
+    document.getElementById('cliente-telefono').value = '';
+    document.getElementById('cliente-direccion').value = '';
+}
+
+// Guardar el estado actual del carrito en localStorage
+function guardarCarritoEnStorage() {
+    try {
+        localStorage.setItem('ditico_carrito', JSON.stringify(carrito));
+    } catch (e) {
+        console.error("Error al guardar carrito en localStorage:", e);
+    }
+}
+
+// Cargar el carrito guardado al iniciar la aplicación
+function cargarCarritoDeStorage() {
+    try {
+        const carritoGuardado = localStorage.getItem('ditico_carrito');
+        if (carritoGuardado) {
+            carrito = JSON.parse(carritoGuardado);
+            actualizarCarritoUI();
+        }
+    } catch (e) {
+        console.error("Error al leer carrito de localStorage:", e);
+        carrito = {};
+    }
+}
+
+// Vaciar el carrito tanto en memoria como en localStorage
+function vaciarCarrito() {
+    carrito = {};
+    localStorage.removeItem('ditico_carrito');
+    actualizarCarritoUI();
+    renderizarProductos();
 }
 
 function enviarPedidoWhatsApp() {
@@ -487,6 +557,9 @@ function enviarPedidoWhatsApp() {
 
     const url = `https://wa.me/584241191218?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
+
+    window.open(url, '_blank');
+vaciarCarrito();
 }
 
 // Modal Admin
@@ -584,6 +657,7 @@ async function guardarProducto() {
         cerrarModal();
         cargarProductos();
         cargarCategorias();
+        
     } else {
         mostrarToast("Error al guardar: " + (res.error?.message || 'Revisa la configuración y las políticas de Supabase'), "error");
     }
