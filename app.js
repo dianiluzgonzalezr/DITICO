@@ -16,13 +16,150 @@ let imagenSubidaUrl = "";
 const { createClient } = window.supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Event Listener Inicial
-document.addEventListener("DOMContentLoaded", () => {
+// Inicialización pública y acceso administrativo protegido
+document.addEventListener("DOMContentLoaded", async () => {
     cargarTasaBCV();
     cargarCategorias();
     cargarProductos();
     configurarDropZone();
+
+    document.getElementById('form-login')?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const email = document.getElementById('login-email')?.value.trim();
+        const password = document.getElementById('login-password')?.value || '';
+        await iniciarSesionAdmin(email, password);
+    });
+
+    _supabase.auth.onAuthStateChange((_event, session) => {
+        if (!session) salirDeAdminVisualmente();
+    });
+
+    window.addEventListener('hashchange', verificarRutaAdmin);
+    await verificarRutaAdmin();
 });
+
+async function comprobarAdministrador() {
+    const { data: sessionData } = await _supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user) return { autorizado: false, user: null };
+
+    // La función SECURITY DEFINER es preferible a consultar directamente
+    // perfiles_admin, porque no exige exponer esa tabla al navegador.
+    const { data, error } = await _supabase.rpc('es_admin');
+    return { autorizado: !error && data === true, user };
+}
+
+async function verificarRutaAdmin() {
+    const esRutaAdmin = window.location.hash.toLowerCase() === '#admin';
+
+    if (!esRutaAdmin) {
+        salirDeAdminVisualmente();
+        cerrarLogin();
+        return;
+    }
+
+    const { autorizado, user } = await comprobarAdministrador();
+    if (autorizado) {
+        activarModoAdmin(user);
+    } else {
+        salirDeAdminVisualmente();
+        abrirLogin();
+    }
+}
+
+function activarModoAdmin(user) {
+    document.body.classList.add('admin-mode');
+    const toolbar = document.getElementById('admin-toolbar');
+    const panelTasa = document.getElementById('admin-tasa-panel');
+    const label = document.getElementById('admin-user-label');
+    if (toolbar) toolbar.style.display = 'flex';
+    if (panelTasa) panelTasa.style.display = 'block';
+    if (label) label.textContent = `Administrador: ${user?.email || 'sesión activa'}`;
+    cerrarLogin();
+}
+
+function salirDeAdminVisualmente() {
+    document.body.classList.remove('admin-mode');
+    const toolbar = document.getElementById('admin-toolbar');
+    const panelTasa = document.getElementById('admin-tasa-panel');
+    if (toolbar) toolbar.style.display = 'none';
+    if (panelTasa) panelTasa.style.display = 'none';
+}
+
+function abrirLogin() {
+    const modal = document.getElementById('modal-login');
+    if (!modal) return;
+    modal.style.display = 'block';
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => document.getElementById('login-email')?.focus(), 50);
+}
+
+function cerrarLogin() {
+    const modal = document.getElementById('modal-login');
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+async function iniciarSesionAdmin(email, password) {
+    const boton = document.getElementById('btn-login');
+    const errorEl = document.getElementById('login-error');
+    if (errorEl) errorEl.textContent = '';
+
+    if (!email || !password) {
+        if (errorEl) errorEl.textContent = 'Completa el correo y la contraseña.';
+        return;
+    }
+
+    if (boton) {
+        boton.disabled = true;
+        boton.dataset.textoOriginal = boton.textContent;
+        boton.textContent = 'Verificando...';
+    }
+
+    const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+        if (errorEl) errorEl.textContent = traducirErrorAuth(error.message);
+        if (boton) {
+            boton.disabled = false;
+            boton.textContent = boton.dataset.textoOriginal || 'Iniciar sesión';
+        }
+        return;
+    }
+
+    const resultado = await comprobarAdministrador();
+    if (!resultado.autorizado) {
+        await _supabase.auth.signOut();
+        if (errorEl) errorEl.textContent = 'El usuario inició sesión, pero no está registrado como administrador.';
+        if (boton) {
+            boton.disabled = false;
+            boton.textContent = boton.dataset.textoOriginal || 'Iniciar sesión';
+        }
+        return;
+    }
+
+    activarModoAdmin(data.user);
+    mostrarToast('Acceso administrativo autorizado', 'success');
+    if (boton) {
+        boton.disabled = false;
+        boton.textContent = boton.dataset.textoOriginal || 'Iniciar sesión';
+    }
+}
+
+async function cerrarSesionAdmin() {
+    await _supabase.auth.signOut();
+    salirDeAdminVisualmente();
+    cerrarModal();
+    cerrarLogin();
+    if (window.location.hash === '#admin') history.replaceState(null, '', window.location.pathname + window.location.search);
+    mostrarToast('Sesión administrativa cerrada', 'success');
+}
+
+function traducirErrorAuth(message = '') {
+    if (message.toLowerCase().includes('invalid login credentials')) return 'Correo o contraseña incorrectos.';
+    if (message.toLowerCase().includes('email not confirmed')) return 'Debes confirmar el correo antes de iniciar sesión.';
+    return `No se pudo iniciar sesión: ${message}`;
+}
 
 // Generar referencia única automática
 function generarReferenciaUnica() {
