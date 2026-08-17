@@ -1,7 +1,6 @@
 const SUPABASE_URL = 'https://xdwtgtxeiksxemmpkfkk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhkd3RndHhlaWtzeGVtbXBrZmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MjIwMTQsImV4cCI6MjEwMjM5ODAxNH0.aWq8B2FIr1PJJN7Dg9EpRMOVIuYdajacuujEg3lTjsQ';
 
-
 // 2. Declaración de Variables Globales del Sistema
 let productosGlobales = [];
 let categoriasGlobales = [];
@@ -43,8 +42,6 @@ async function comprobarAdministrador() {
     const user = sessionData?.session?.user;
     if (!user) return { autorizado: false, user: null };
 
-    // La función SECURITY DEFINER es preferible a consultar directamente
-    // perfiles_admin, porque no exige exponer esa tabla al navegador.
     const { data, error } = await _supabase.rpc('es_admin');
     return { autorizado: !error && data === true, user };
 }
@@ -161,7 +158,6 @@ function traducirErrorAuth(message = '') {
     return `No se pudo iniciar sesión: ${message}`;
 }
 
-// Generar referencia única automática
 function generarReferenciaUnica() {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let code = "";
@@ -206,7 +202,7 @@ async function actualizarTasaBCV() {
 
 async function cargarCategorias() {
     const { data, error } = await _supabase.from('productos').select('categoria');
-    if (data) {
+    if (data && !error) {
         const catsSet = new Set(data.map(p => p.categoria).filter(Boolean));
         categoriasGlobales = Array.from(catsSet);
         renderizarCategoriasNav();
