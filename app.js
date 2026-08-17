@@ -1,10 +1,8 @@
 const SUPABASE_URL = 'https://xdwtgtxeiksxemmpkfkk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhkd3RndHhlaWtzeGVtbXBrZmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MjIwMTQsImV4cCI6MjEwMjM5ODAxNH0.aWq8B2FIr1PJJN7Dg9EpRMOVIuYdajacuujEg3lTjsQ';
-const { createClient } = window.supabase;
-const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 
-// Variables Globales
+// 2. Declaración de Variables Globales del Sistema
 let productosGlobales = [];
 let categoriasGlobales = [];
 let cantidadesSeleccionadas = {};
@@ -14,6 +12,11 @@ let categoriaActiva = "Todos";
 let busquedaTexto = "";
 let imagenSubidaUrl = "";
 
+// 3. Inicialización del Cliente de Supabase
+const { createClient } = window.supabase;
+const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Event Listener Inicial
 document.addEventListener("DOMContentLoaded", () => {
     cargarTasaBCV();
     cargarCategorias();
@@ -197,7 +200,7 @@ async function toggleAgotado(id, nuevoEstado) {
     }
 }
 
-// Lógica de Carrito
+// Carrito
 function agregarAlCarrito(id) {
     const prod = productosGlobales.find(p => p.id === id);
     if (!prod || prod.agotado) return;
@@ -427,7 +430,7 @@ function gestionarCategoriasModal() {
     alert(msg);
 }
 
-// Configuración Subida de Imagen
+// Subida de Imagenes
 function configurarDropZone() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
