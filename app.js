@@ -14,7 +14,7 @@ let imagenSubidaUrl = "";
 
 // 3. Inicialización del Cliente de Supabase
 const { createClient } = window.supabase;
-const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Event Listener Inicial
 document.addEventListener("DOMContentLoaded", () => {
@@ -360,6 +360,8 @@ function prepararEdicion(prod) {
 }
 
 async function guardarProducto() {
+    const botonGuardar = document.getElementById('btn-accion-guardar');
+    if (botonGuardar?.disabled) return;
     const id = document.getElementById('edit-id').value;
     const nombre = document.getElementById('nuevo-nombre').value.trim();
     const referencia = document.getElementById('nueva-referencia').value.trim();
@@ -384,11 +386,21 @@ async function guardarProducto() {
         imagen_url: imagenSubidaUrl
     };
 
+    if (botonGuardar) {
+        botonGuardar.disabled = true;
+        botonGuardar.dataset.textoOriginal = botonGuardar.textContent;
+        botonGuardar.textContent = id ? 'Actualizando...' : 'Guardando...';
+    }
+
     let res;
-    if (id) {
-        res = await _supabase.from('productos').update(payload).eq('id', id);
-    } else {
-        res = await _supabase.from('productos').insert([payload]);
+    try {
+        if (id) {
+            res = await _supabase.from('productos').update(payload).eq('id', id);
+        } else {
+            res = await _supabase.from('productos').insert([payload]);
+        }
+    } catch (error) {
+        res = { error };
     }
 
     if (!res.error) {
@@ -397,7 +409,12 @@ async function guardarProducto() {
         cargarProductos();
         cargarCategorias();
     } else {
-        mostrarToast("Error al guardar: " + res.error.message, "error");
+        mostrarToast("Error al guardar: " + (res.error?.message || 'Revisa la configuración y las políticas de Supabase'), "error");
+    }
+
+    if (botonGuardar) {
+        botonGuardar.disabled = false;
+        botonGuardar.textContent = botonGuardar.dataset.textoOriginal || 'Guardar Producto';
     }
 }
 
@@ -438,14 +455,25 @@ function configurarDropZone() {
     if (!dropZone || !fileInput) return;
 
     dropZone.onclick = () => fileInput.click();
+    dropZone.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInput.click();
+        }
+    };
 
     fileInput.onchange = (e) => {
         if (e.target.files.length > 0) procesarArchivoImagen(e.target.files[0]);
     };
 
-    dropZone.ondragover = (e) => e.preventDefault();
+    dropZone.ondragover = (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    };
+    dropZone.ondragleave = () => dropZone.classList.remove('dragover');
     dropZone.ondrop = (e) => {
         e.preventDefault();
+        dropZone.classList.remove('dragover');
         if (e.dataTransfer.files.length > 0) procesarArchivoImagen(e.dataTransfer.files[0]);
     };
 
@@ -460,7 +488,8 @@ function configurarDropZone() {
 }
 
 async function procesarArchivoImagen(file) {
-    if (!file.type.startsWith('image/')) return mostrarToast("El archivo debe ser una imagen", "error");
+    if (!file || !file.type.startsWith('image/')) return mostrarToast("El archivo debe ser una imagen", "error");
+    if (file.size > 8 * 1024 * 1024) return mostrarToast("La imagen no debe superar 8 MB", "error");
 
     const spinner = document.getElementById('spinner-subida');
     if (spinner) spinner.style.display = 'block';
@@ -468,12 +497,24 @@ async function procesarArchivoImagen(file) {
     const fileExt = file.name ? file.name.split('.').pop() : 'png';
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
 
-    const { data, error } = await _supabase.storage.from('imagenes_productos').upload(fileName, file);
+    let uploadResult;
+    try {
+        uploadResult = await _supabase.storage
+            .from('imagenes_productos')
+            .upload(fileName, file, {
+                cacheControl: '3600',
+                contentType: file.type,
+                upsert: false
+            });
+    } catch (uploadError) {
+        uploadResult = { error: uploadError };
+    }
 
     if (spinner) spinner.style.display = 'none';
+    const { error } = uploadResult || {};
 
     if (error) {
-        mostrarToast("Error al subir imagen: " + error.message, "error");
+        mostrarToast("Error al subir imagen: " + (error.message || 'Revisa el bucket y sus políticas'), "error");
         return;
     }
 
