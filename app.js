@@ -1,6 +1,7 @@
 const SUPABASE_URL = 'https://xdwtgtxeiksxemmpkfkk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhkd3RndHhlaWtzeGVtbXBrZmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MjIwMTQsImV4cCI6MjEwMjM5ODAxNH0.aWq8B2FIr1PJJN7Dg9EpRMOVIuYdajacuujEg3lTjsQ';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const { createClient } = window.supabase;
+const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let productosGlobales = [];
 let categoriasGlobales = [];
@@ -30,7 +31,7 @@ function generarReferenciaUnica() {
 
 async function cargarTasaBCV() {
     try {
-        const { data, error } = await supabase.from('configuracion').select('valor').eq('clave', 'tasa_bcv').single();
+        const { data, error } = await _supabase.from('configuracion').select('valor').eq('clave', 'tasa_bcv').single();
         if (data && data.valor) {
             tasaBCV = parseFloat(data.valor);
             document.getElementById('texto-tasa-bcv').innerText = `Tasa: Bs ${tasaBCV.toFixed(2)}`;
@@ -59,7 +60,7 @@ async function actualizarTasaBCV() {
 }
 
 async function cargarCategorias() {
-    const { data, error } = await supabase.from('productos').select('categoria');
+    const { data, error } = await _supabase.from('productos').select('categoria');
     if (data) {
         const catsSet = new Set(data.map(p => p.categoria).filter(Boolean));
         categoriasGlobales = Array.from(catsSet);
@@ -96,7 +97,7 @@ function buscarProductos(texto) {
 }
 
 async function cargarProductos() {
-    const { data, error } = await supabase.from('productos').select('*').order('destacado', { ascending: false });
+    const { data, error } = await _supabase.from('productos').select('*').order('destacado', { ascending: false });
     if (error) {
         mostrarToast("Error al obtener productos", "error");
         return;
@@ -372,9 +373,9 @@ async function guardarProducto() {
 
     let res;
     if (id) {
-        res = await supabase.from('productos').update(payload).eq('id', id);
+        res = await _supabase.from('productos').update(payload).eq('id', id);
     } else {
-        res = await supabase.from('productos').insert([payload]);
+        res = await _supabase.from('productos').insert([payload]);
     }
 
     if (!res.error) {
@@ -452,14 +453,23 @@ async function procesarArchivoImagen(file) {
     const fileExt = file.name ? file.name.split('.').pop() : 'png';
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
 
-    const { data, error } = await supabase.storage.from('imagenes_productos').upload(fileName, file);
+    const { data, error } = await _supabase.storage.from('imagenes_productos').upload(fileName, file);
 
     spinner.style.display = 'none';
 
     if (error) {
-        mostrarToast("Error al subir imagen a Supabase Storage", "error");
+        mostrarToast("Error al subir imagen a Supabase Storage: " + error.message, "error");
         return;
     }
+
+    const { data: publicUrlData } = _supabase.storage.from('imagenes_productos').getPublicUrl(fileName);
+    imagenSubidaUrl = publicUrlData.publicUrl;
+
+    const img = document.getElementById('preview-img');
+    img.src = imagenSubidaUrl;
+    img.style.display = 'block';
+    mostrarToast("Imagen subida con éxito", "success");
+}
 
     const { data: publicUrlData } = supabase.storage.from('imagenes_productos').getPublicUrl(fileName);
     imagenSubidaUrl = publicUrlData.publicUrl;
