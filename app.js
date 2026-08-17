@@ -169,7 +169,12 @@ function generarReferenciaUnica() {
 
 async function cargarTasaBCV() {
     try {
-        const { data, error } = await _supabase.from('configuracion').select('valor').eq('clave', 'tasa_bcv').single();
+        const { data, error } = await _supabase
+            .from('configuracion')
+            .select('valor')
+            .eq('clave', 'tasa_bcv')
+            .maybeSingle(); // Usa maybeSingle para evitar excepciones duras si no halla filas
+
         if (data && data.valor) {
             tasaBCV = parseFloat(data.valor);
             const elTexto = document.getElementById('texto-tasa-bcv');
@@ -178,7 +183,7 @@ async function cargarTasaBCV() {
             if (inputTasa) inputTasa.value = tasaBCV.toFixed(2);
         }
     } catch (e) {
-        console.warn("No se pudo cargar la tasa de la BD, usando valor por defecto.");
+        console.warn("No se pudo cargar la tasa de la BD, usando valor por defecto:", tasaBCV);
     }
 }
 
@@ -275,6 +280,7 @@ function renderizarProductos() {
 
         const card = document.createElement('div');
         card.className = `card ${prod.agotado ? 'agotado' : ''}`;
+        
         card.innerHTML = `
             <span class="badge-ref">${prod.referencia || 'SIN-REF'}</span>
             ${prod.destacado ? '<span class="badge-destacado">⭐ Destacado</span>' : ''}
@@ -286,7 +292,7 @@ function renderizarProductos() {
             ${prod.agotado ? '<span class="badge-agotado">🚫 AGOTADO</span>' : ''}
 
             ${esMayorista ? '<span style="color:#2ed573; font-size:0.85rem; font-weight:bold;">¡Precio Mayorista Aplicado!</span>' : ''}
-            <div class="precio-usd">$${precioAplicado.toFixed(2)}</div>
+            <div class="precio-usd">$${Number(precioAplicado).toFixed(2)}</div>
             <div class="precio-bs">Bs ${precioBs}</div>
             
             ${prod.cant_min_mayorista > 0 ? `
@@ -296,26 +302,38 @@ function renderizarProductos() {
             ` : ''}
 
             <div class="admin-card-controls">
-                <button class="btn-editar-card" onclick='prepararEdicion(${JSON.stringify(prod)})'>✏️ Editar</button>
-                <button class="btn-toggle-agotado" onclick="toggleAgotado('${prod.id}', ${!prod.agotado})">
+                <button class="btn-editar-card">✏️ Editar</button>
+                <button class="btn-toggle-agotado">
                     ${prod.agotado ? '✅ Disponible' : '🚫 Agotado'}
                 </button>
-                <button class="btn-eliminar-card" onclick="eliminarProducto('${prod.id}')">🗑️</button>
+                <button class="btn-eliminar-card">🗑️</button>
             </div>
 
             <div class="selector-cantidad">
-                <button onclick="cambiarCantidadSeleccionada('${prod.id}', -1)" ${prod.agotado ? 'disabled' : ''}>-</button>
+                <button class="btn-restar-cant" ${prod.agotado ? 'disabled' : ''}>-</button>
                 <span>${cant}</span>
-                <button onclick="cambiarCantidadSeleccionada('${prod.id}', 1)" ${prod.agotado ? 'disabled' : ''}>+</button>
+                <button class="btn-sumar-cant" ${prod.agotado ? 'disabled' : ''}>+</button>
             </div>
             
-            <button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')" ${prod.agotado ? 'disabled' : ''}>
+            <button class="btn-agregar" ${prod.agotado ? 'disabled' : ''}>
                 ${prod.agotado ? 'Agotado' : 'Agregar al Carrito'}
             </button>
         `;
+
+        // Asignación de Eventos Segura en Memoria JS
+        card.querySelector('.btn-editar-card').onclick = () => prepararEdicion(prod);
+        card.querySelector('.btn-toggle-agotado').onclick = () => toggleAgotado(prod.id, !prod.agotado);
+        card.querySelector('.btn-eliminar-card').onclick = () => eliminarProducto(prod.id);
+
+        card.querySelector('.btn-restar-cant').onclick = () => cambiarCantidadSeleccionada(prod.id, -1);
+        card.querySelector('.btn-sumar-cant').onclick = () => cambiarCantidadSeleccionada(prod.id, 1);
+        
+        card.querySelector('.btn-agregar').onclick = () => agregarAlCarrito(prod);
+
         contenedor.appendChild(card);
     });
 }
+
 
 function cambiarCantidadSeleccionada(id, cambio) {
     const actual = cantidadesSeleccionadas[id] || 1;
@@ -334,11 +352,13 @@ async function toggleAgotado(id, nuevoEstado) {
 }
 
 // Carrito
-function agregarAlCarrito(id) {
-    const prod = productosGlobales.find(p => p.id === id);
+
+function agregarAlCarrito(prod) {
     if (!prod || prod.agotado) return;
 
+    const id = prod.id;
     const cantAAgregar = cantidadesSeleccionadas[id] || 1;
+
     if (carrito[id]) {
         carrito[id].cantidad += cantAAgregar;
     } else {
@@ -418,9 +438,26 @@ function enviarPedidoWhatsApp() {
     const keys = Object.keys(carrito);
     if (keys.length === 0) return mostrarToast("Tu carrito está vacío", "error");
 
+    // Capturar datos del cliente
+    const nombre = document.getElementById('cliente-nombre')?.value.trim();
+    const telefono = document.getElementById('cliente-telefono')?.value.trim();
+    const direccion = document.getElementById('cliente-direccion')?.value.trim();
     const selectPago = document.getElementById('metodo-pago-select');
     const metodoPago = selectPago ? selectPago.value : 'No especificado';
-    let mensaje = "🛒 *NUEVO PEDIDO DITICO*\n----------------------------------\n";
+
+    // Validación de campos requeridos
+    if (!nombre || !telefono || !direccion) {
+        return mostrarToast("Por favor completa tu Nombre, Teléfono y Dirección", "error");
+    }
+
+    let mensaje = "🛒 *NUEVO PEDIDO DITICO*\n";
+    mensaje += "----------------------------------\n";
+    mensaje += `👤 *Nombre:* ${nombre}\n`;
+    mensaje += `📞 *Teléfono:* ${telefono}\n`;
+    mensaje += `📍 *Dirección:* ${direccion}\n`;
+    mensaje += "----------------------------------\n";
+    mensaje += "*DETALLE DEL PEDIDO:*\n\n";
+
     let totalUSD = 0;
 
     keys.forEach(id => {
@@ -433,14 +470,20 @@ function enviarPedidoWhatsApp() {
         const subtotal = precioUnitario * cant;
         totalUSD += subtotal;
 
-        mensaje += `• ${cant}x ${prod.nombre} [Ref: ${prod.referencia || 'N/A'}] ${esMayorista ? '*(Precio Mayorista)*' : ''} - $${subtotal.toFixed(2)}\n`;
+        const imagenUrl = prod.imagen_url || 'Sin imagen';
+
+        mensaje += `• *${prod.nombre}*\n`;
+        mensaje += `  - Ref: ${prod.referencia || 'N/A'}\n`;
+        mensaje += `  - Cantidad: ${cant}\n`;
+        mensaje += `  - Subtotal: $${subtotal.toFixed(2)} ${esMayorista ? '(Mayorista)' : ''}\n`;
+        mensaje += `  - Imagen: ${imagenUrl}\n\n`;
     });
 
     const totalBs = totalUSD * tasaBCV;
     mensaje += "----------------------------------\n";
-    mensaje += `*Total USD:* $${totalUSD.toFixed(2)}\n`;
-    mensaje += `*Total Bs (Tasa ${tasaBCV.toFixed(2)}):* Bs ${totalBs.toFixed(2)}\n`;
-    mensaje += `*Método de Pago:* ${metodoPago}\n`;
+    mensaje += `💵 *Total USD:* $${totalUSD.toFixed(2)}\n`;
+    mensaje += `🇻🇪 *Total Bs (Tasa ${tasaBCV.toFixed(2)}):* Bs ${totalBs.toFixed(2)}\n`;
+    mensaje += `💳 *Método de Pago:* ${metodoPago}\n`;
 
     const url = `https://wa.me/584241191218?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
