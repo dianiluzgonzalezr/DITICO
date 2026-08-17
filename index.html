@@ -73,6 +73,13 @@
                     <option value="Bolívares">Bolívares</option>
                 </select>
             </div>
+
+            <div class="datos-cliente-carrito" style="margin: 15px 0; display: flex; flex-direction: column; gap: 8px;">
+            <h4>Info de Entrega</h4>
+             <input type="text" id="cliente-nombre" placeholder="Nombre completo *" required style="padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+             <input type="tel" id="cliente-telefono" placeholder="Teléfono / WhatsApp *" required style="padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
+             <textarea id="cliente-direccion" placeholder="Dirección de entrega *" rows="2" style="padding: 8px; border-radius: 6px; border: 1px solid #ccc;"></textarea>
+            </div>
             <button onclick="enviarPedidoWhatsApp()" class="btn-whatsapp">Enviar pedido por WhatsApp</button>
         </div>
     </div>
