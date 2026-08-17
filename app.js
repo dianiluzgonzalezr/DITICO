@@ -86,38 +86,37 @@ function renderizarProductos(productos) {
     const contenedor = document.getElementById('contenedor-productos');
     contenedor.innerHTML = '';
 
-    if (productos.length === 0) {
-        contenedor.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#888;">No se encontraron productos.</p>';
-        return;
-    }
-
     productos.forEach(prod => {
-        const precioBs = (prod.precio * TASA_BCV).toFixed(2);
-        const nombreSeguro = prod.nombre.replace(/'/g, "\\'");
-        
-        contenedor.innerHTML += `
-            <div class="card">
-                <div>
-                    <img src="${prod.imagen}" alt="${prod.nombre}">
-                    <h3>${prod.nombre}</h3>
-                    <p class="precio-usd">$${prod.precio.toFixed(2)}</p>
-                    <p class="precio-bs">Bs ${precioBs}</p>
-                </div>
-                <div>
-                    <div class="admin-card-controls">
-                        <button class="btn-editar-card" onclick="abrirModalEditar(${prod.id}, '${nombreSeguro}', ${prod.precio}, '${prod.categoria}', '${prod.imagen}')">Editar</button>
-                        <button class="btn-eliminar-card" onclick="eliminarProducto(${prod.id})">Eliminar</button>
-                    </div>
+        const cant = cantidadesSeleccionadas[prod.id] || 1;
+        const esMayorista = prod.cant_min_mayorista > 0 && cant >= prod.cant_min_mayorista;
+        const precioAplicado = esMayorista ? prod.precio_mayorista : prod.precio;
+        const precioBs = (precioAplicado * tasaBCV).toFixed(2);
 
-                    <div class="selector-cantidad">
-                        <button onclick="cambiarCantLocal('${nombreSeguro}', -1)">-</button>
-                        <span id="cant-${prod.nombre.replace(/\s+/g, '')}">1</span>
-                        <button onclick="cambiarCantLocal('${nombreSeguro}', 1)">+</button>
-                    </div>
-                    <button class="btn-agregar" onclick="agregarAlCarritoConCantidad('${nombreSeguro}', ${prod.precio})">Agregar</button>
-                </div>
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <img src="${prod.imagen_url}" alt="${prod.nombre}">
+            <h3>${prod.nombre}</h3>
+            ${esMayorista ? '<span style="color:#d96b27; font-size:0.85rem; font-weight:bold;">¡Precio Mayorista Aplicado!</span>' : ''}
+            <div class="precio-usd">$${precioAplicado.toFixed(2)}</div>
+            <div class="precio-bs">Bs ${precioBs}</div>
+            
+            ${prod.cant_min_mayorista > 0 ? `<p style="font-size:0.8rem; color:#666; margin: 2px 0;">Mayorista a partir de ${prod.cant_min_mayorista} unids: $${Number(prod.precio_mayorista).toFixed(2)}</p>` : ''}
+
+            <div class="admin-card-controls">
+                <button class="btn-editar-card" onclick='prepararEdicion(${JSON.stringify(prod)})'>✏️ Editar</button>
+                <button class="btn-eliminar-card" onclick="eliminarProducto('${prod.id}')">🗑️ Eliminar</button>
             </div>
+
+            <div class="selector-cantidad">
+                <button onclick="cambiarCantidad('${prod.id}', -1)">-</button>
+                <span>${cant}</span>
+                <button onclick="cambiarCantidad('${prod.id}', 1)">+</button>
+            </div>
+            
+            <button class="btn-agregar" onclick="agregarAlCarrito('${prod.id}')">Agregar al Carrito</button>
         `;
+        contenedor.appendChild(card);
     });
 }
 
@@ -335,64 +334,40 @@ function procesarArchivo(file) {
 async function guardarProducto() {
     const id = document.getElementById('edit-id').value;
     const nombre = document.getElementById('nuevo-nombre').value;
-    const precioInput = document.getElementById('nuevo-precio').value.replace(',', '.');
-    const precio = parseFloat(precioInput);
+    const precio = parseFloat(document.getElementById('nuevo-precio').value) || 0;
+    const precioMayorista = parseFloat(document.getElementById('nuevo-precio-mayorista').value) || 0;
+    const cantMinMayorista = parseInt(document.getElementById('nueva-cant-min-mayorista').value) || 0;
     const categoria = document.getElementById('nuevo-categoria').value;
 
-    if (!nombre || isNaN(precio)) {
-        mostrarNotificacion('Por favor, llena el nombre y un precio válido.');
-        return;
-    }
-
-    let urlFinalImagen = imagenActualUrl;
-
-    if (archivoImagenSeleccionado) {
-        const nombreArchivo = `${Date.now()}_${archivoImagenSeleccionado.name.replace(/\s+/g, '_')}`;
-        const { error: uploadError } = await supabaseClient.storage
-            .from('productos')
-            .upload(nombreArchivo, archivoImagenSeleccionado);
-
-        if (uploadError) {
-            mostrarNotificacion('Error al subir la imagen al Storage: ' + uploadError.message);
-            return;
-        }
-
-        const { data: publicUrlData } = supabaseClient.storage
-            .from('productos')
-            .getPublicUrl(nombreArchivo);
-
-        urlFinalImagen = publicUrlData.publicUrl;
-    }
-
-    if (!urlFinalImagen) {
-        mostrarNotificacion('Asegúrate de agregar una imagen para el producto.');
-        return;
-    }
+    const datosProducto = {
+        nombre: nombre,
+        precio: precio,
+        precio_mayorista: precioMayorista,
+        cant_min_mayorista: cantMinMayorista,
+        categoria: categoria,
+        imagen_url: imagenUrlFinal
+    };
 
     if (id) {
-        const { error } = await supabaseClient
-            .from('productos')
-            .update({ nombre, precio, categoria, imagen: urlFinalImagen })
-            .eq('id', id);
-
-        if (error) {
-            mostrarNotificacion('Error al actualizar: ' + error.message);
-        } else {
-            cerrarModal();
-            cargarDatos();
-        }
+        await supabase.from('productos').update(datosProducto).eq('id', id);
     } else {
-        const { error } = await supabaseClient
-            .from('productos')
-            .insert([{ nombre, precio, categoria, imagen: urlFinalImagen }]);
-
-        if (error) {
-            mostrarNotificacion('Hubo un error al guardar: ' + error.message);
-        } else {
-            cerrarModal();
-            cargarDatos();
-        }
+        await supabase.from('productos').insert([datosProducto]);
     }
+
+    cerrarModal();
+    cargarProductos();
+}
+
+function prepararEdicion(producto) {
+    document.getElementById('edit-id').value = producto.id;
+    document.getElementById('nuevo-nombre').value = producto.nombre;
+    document.getElementById('nuevo-precio').value = producto.precio;
+    document.getElementById('nuevo-precio-mayorista').value = producto.precio_mayorista || 0;
+    document.getElementById('nueva-cant-min-mayorista').value = producto.cant_min_mayorista || 0;
+    document.getElementById('nuevo-categoria').value = producto.categoria;
+    
+    document.getElementById('modal-titulo').innerText = "Editar Producto";
+    document.getElementById('modal-admin').style.display = "block";
 }
 
 async function eliminarProducto(id) {
