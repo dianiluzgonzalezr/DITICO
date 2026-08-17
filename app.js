@@ -3,6 +3,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = window.supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+
+// Variables Globales
 let productosGlobales = [];
 let categoriasGlobales = [];
 let cantidadesSeleccionadas = {};
@@ -34,7 +36,8 @@ async function cargarTasaBCV() {
         const { data, error } = await _supabase.from('configuracion').select('valor').eq('clave', 'tasa_bcv').single();
         if (data && data.valor) {
             tasaBCV = parseFloat(data.valor);
-            document.getElementById('texto-tasa-bcv').innerText = `Tasa: Bs ${tasaBCV.toFixed(2)}`;
+            const elTexto = document.getElementById('texto-tasa-bcv');
+            if (elTexto) elTexto.innerText = `Tasa: Bs ${tasaBCV.toFixed(2)}`;
             const inputTasa = document.getElementById('input-nueva-tasa');
             if (inputTasa) inputTasa.value = tasaBCV.toFixed(2);
         }
@@ -44,13 +47,15 @@ async function cargarTasaBCV() {
 }
 
 async function actualizarTasaBCV() {
-    const nuevaTasa = parseFloat(document.getElementById('input-nueva-tasa').value);
+    const inputTasa = document.getElementById('input-nueva-tasa');
+    const nuevaTasa = parseFloat(inputTasa ? inputTasa.value : 0);
     if (!nuevaTasa || nuevaTasa <= 0) return mostrarToast("Ingresa una tasa válida", "error");
 
-    const { error } = await supabase.from('configuracion').upsert({ clave: 'tasa_bcv', valor: nuevaTasa }, { onConflict: 'clave' });
+    const { error } = await _supabase.from('configuracion').upsert({ clave: 'tasa_bcv', valor: nuevaTasa }, { onConflict: 'clave' });
     if (!error) {
         tasaBCV = nuevaTasa;
-        document.getElementById('texto-tasa-bcv').innerText = `Tasa: Bs ${tasaBCV.toFixed(2)}`;
+        const elTexto = document.getElementById('texto-tasa-bcv');
+        if (elTexto) elTexto.innerText = `Tasa: Bs ${tasaBCV.toFixed(2)}`;
         mostrarToast("Tasa BCV actualizada correctamente", "success");
         renderizarProductos();
         actualizarCarritoUI();
@@ -71,6 +76,7 @@ async function cargarCategorias() {
 
 function renderizarCategoriasNav() {
     const nav = document.getElementById('menu-categorias');
+    if (!nav) return;
     nav.innerHTML = `<button onclick="filtrarCategoria('Todos')" class="btn-cat-filtro ${categoriaActiva === 'Todos' ? 'active' : ''}">Todos</button>`;
     categoriasGlobales.forEach(cat => {
         nav.innerHTML += `<button onclick="filtrarCategoria('${cat}')" class="btn-cat-filtro ${categoriaActiva === cat ? 'active' : ''}">${cat}</button>`;
@@ -79,6 +85,7 @@ function renderizarCategoriasNav() {
 
 function poblarCategoriasSelect() {
     const select = document.getElementById('nuevo-categoria');
+    if (!select) return;
     select.innerHTML = '';
     categoriasGlobales.forEach(cat => {
         select.innerHTML += `<option value="${cat}">${cat}</option>`;
@@ -108,6 +115,7 @@ async function cargarProductos() {
 
 function renderizarProductos() {
     const contenedor = document.getElementById('contenedor-productos');
+    if (!contenedor) return;
     contenedor.innerHTML = '';
 
     const filtrados = productosGlobales.filter(prod => {
@@ -175,13 +183,12 @@ function renderizarProductos() {
 
 function cambiarCantidadSeleccionada(id, cambio) {
     const actual = cantidadesSeleccionadas[id] || 1;
-    const nueva = Math.max(1, actual + cambio);
-    cantidadesSeleccionadas[id] = nueva;
+    cantidadesSeleccionadas[id] = Math.max(1, actual + cambio);
     renderizarProductos();
 }
 
 async function toggleAgotado(id, nuevoEstado) {
-    const { error } = await supabase.from('productos').update({ agotado: nuevoEstado }).eq('id', id);
+    const { error } = await _supabase.from('productos').update({ agotado: nuevoEstado }).eq('id', id);
     if (!error) {
         mostrarToast(nuevoEstado ? "Producto marcado como Agotado" : "Producto marcado como Disponible", "success");
         cargarProductos();
@@ -222,8 +229,9 @@ function actualizarCarritoUI() {
     const lista = document.getElementById('lista-carrito-items');
     const contador = document.getElementById('contador-carrito');
     const contenedorTotales = document.getElementById('resumen-totales-carrito');
-    lista.innerHTML = '';
+    if (!lista || !contador || !contenedorTotales) return;
 
+    lista.innerHTML = '';
     let totalUSD = 0;
     let totalItems = 0;
 
@@ -266,14 +274,16 @@ function actualizarCarritoUI() {
 }
 
 function togglePanelCarrito() {
-    document.getElementById('panel-carrito').classList.toggle('activo');
+    const panel = document.getElementById('panel-carrito');
+    if (panel) panel.classList.toggle('activo');
 }
 
 function enviarPedidoWhatsApp() {
     const keys = Object.keys(carrito);
     if (keys.length === 0) return mostrarToast("Tu carrito está vacío", "error");
 
-    const metodoPago = document.getElementById('metodo-pago-select').value;
+    const selectPago = document.getElementById('metodo-pago-select');
+    const metodoPago = selectPago ? selectPago.value : 'No especificado';
     let mensaje = "🛒 *NUEVO PEDIDO DITICO*\n----------------------------------\n";
     let totalUSD = 0;
 
@@ -390,7 +400,7 @@ async function guardarProducto() {
 
 async function eliminarProducto(id) {
     if (confirm("¿Seguro que deseas eliminar este producto?")) {
-        const { error } = await supabase.from('productos').delete().eq('id', id);
+        const { error } = await _supabase.from('productos').delete().eq('id', id);
         if (!error) {
             mostrarToast("Producto eliminado", "success");
             cargarProductos();
@@ -422,6 +432,8 @@ function configurarDropZone() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
 
+    if (!dropZone || !fileInput) return;
+
     dropZone.onclick = () => fileInput.click();
 
     fileInput.onchange = (e) => {
@@ -448,17 +460,17 @@ async function procesarArchivoImagen(file) {
     if (!file.type.startsWith('image/')) return mostrarToast("El archivo debe ser una imagen", "error");
 
     const spinner = document.getElementById('spinner-subida');
-    spinner.style.display = 'block';
+    if (spinner) spinner.style.display = 'block';
 
     const fileExt = file.name ? file.name.split('.').pop() : 'png';
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
 
     const { data, error } = await _supabase.storage.from('imagenes_productos').upload(fileName, file);
 
-    spinner.style.display = 'none';
+    if (spinner) spinner.style.display = 'none';
 
     if (error) {
-        mostrarToast("Error al subir imagen a Supabase Storage: " + error.message, "error");
+        mostrarToast("Error al subir imagen: " + error.message, "error");
         return;
     }
 
@@ -466,22 +478,16 @@ async function procesarArchivoImagen(file) {
     imagenSubidaUrl = publicUrlData.publicUrl;
 
     const img = document.getElementById('preview-img');
-    img.src = imagenSubidaUrl;
-    img.style.display = 'block';
-    mostrarToast("Imagen subida con éxito", "success");
-}
-
-    const { data: publicUrlData } = supabase.storage.from('imagenes_productos').getPublicUrl(fileName);
-    imagenSubidaUrl = publicUrlData.publicUrl;
-
-    const img = document.getElementById('preview-img');
-    img.src = imagenSubidaUrl;
-    img.style.display = 'block';
+    if (img) {
+        img.src = imagenSubidaUrl;
+        img.style.display = 'block';
+    }
     mostrarToast("Imagen subida con éxito", "success");
 }
 
 function mostrarToast(mensaje, tipo = "success") {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `toast ${tipo}`;
     toast.innerText = mensaje;
