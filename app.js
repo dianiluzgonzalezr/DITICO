@@ -1,7 +1,8 @@
+// 1. Configuración de Supabase
 const SUPABASE_URL = 'https://xdwtgtxeiksxemmpkfkk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhkd3RndHhlaWtzeGVtbXBrZmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MjIwMTQsImV4cCI6MjEwMjM5ODAxNH0.aWq8B2FIr1PJJN7Dg9EpRMOVIuYdajacuujEg3lTjsQ';
 
-// 2. Declaración de Variables Globales del Sistema
+// 2. Variables Globales del Sistema
 let productosGlobales = [];
 let categoriasGlobales = [];
 let cantidadesSeleccionadas = {};
@@ -10,12 +11,13 @@ let tasaBCV = 771.00;
 let categoriaActiva = "Todos";
 let busquedaTexto = "";
 let imagenSubidaUrl = "";
+let pasoActualCarrito = 1;
 
 // 3. Inicialización del Cliente de Supabase
 const { createClient } = window.supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Inicialización pública y acceso administrativo protegido
+// Inicialización de la Aplicación
 document.addEventListener("DOMContentLoaded", async () => {
     cargarTasaBCV();
     cargarCategorias();
@@ -37,6 +39,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener('hashchange', verificarRutaAdmin);
     await verificarRutaAdmin();
 });
+
+/* ==========================================================================
+   ADMINISTRACIÓN Y AUTENTICACIÓN
+   ========================================================================== */
 
 async function comprobarAdministrador() {
     const { data: sessionData } = await _supabase.auth.getSession();
@@ -168,13 +174,17 @@ function generarReferenciaUnica() {
     return `REF-${code}`;
 }
 
+/* ==========================================================================
+   GESTIÓN DE TASA BCV
+   ========================================================================== */
+
 async function cargarTasaBCV() {
     try {
-        const { data, error } = await _supabase
+        const { data } = await _supabase
             .from('configuracion')
             .select('valor')
             .eq('clave', 'tasa_bcv')
-            .maybeSingle(); // Usa maybeSingle para evitar excepciones duras si no halla filas
+            .maybeSingle();
 
         if (data && data.valor) {
             tasaBCV = parseFloat(data.valor);
@@ -205,6 +215,10 @@ async function actualizarTasaBCV() {
         mostrarToast("Error al actualizar la tasa", "error");
     }
 }
+
+/* ==========================================================================
+   CATEGORÍAS Y BÚSQUEDA
+   ========================================================================== */
 
 async function cargarCategorias() {
     const { data, error } = await _supabase.from('productos').select('categoria');
@@ -244,6 +258,10 @@ function buscarProductos(texto) {
     busquedaTexto = texto.toLowerCase().trim();
     renderizarProductos();
 }
+
+/* ==========================================================================
+   RENDERIZADO DE PRODUCTOS (CATÁLOGO)
+   ========================================================================== */
 
 async function cargarProductos() {
     const { data, error } = await _supabase.from('productos').select('*').order('destacado', { ascending: false });
@@ -310,35 +328,45 @@ function renderizarProductos() {
                 <button class="btn-eliminar-card">🗑️</button>
             </div>
 
-            <div class="selector-cantidad">
+            <div class="selector-cantidad" style="display:flex; align-items:center; justify-content:center; gap:6px;">
                 <button class="btn-restar-cant" ${prod.agotado ? 'disabled' : ''}>-</button>
-                <span>${cant}</span>
+                <input type="number" class="input-cant-card" value="${cant}" min="1" ${prod.agotado ? 'disabled' : ''} style="width:50px; text-align:center; padding:4px; font-weight:bold; border:1px solid #ccc; border-radius:6px;">
                 <button class="btn-sumar-cant" ${prod.agotado ? 'disabled' : ''}>+</button>
             </div>
             
-            <button class="btn-agregar" ${prod.agotado ? 'disabled' : ''}>
+            <button class="btn-agregar" ${prod.agotado ? 'disabled' : ''} style="margin-top:10px;">
                 ${prod.agotado ? 'Agotado' : 'Agregar al Carrito'}
             </button>
         `;
 
-        // Asignación de Eventos Segura en Memoria JS
+        // Eventos Admin
         card.querySelector('.btn-editar-card').onclick = () => prepararEdicion(prod);
         card.querySelector('.btn-toggle-agotado').onclick = () => toggleAgotado(prod.id, !prod.agotado);
         card.querySelector('.btn-eliminar-card').onclick = () => eliminarProducto(prod.id);
 
+        // Eventos Selector Cantidad Tarjeta
         card.querySelector('.btn-restar-cant').onclick = () => cambiarCantidadSeleccionada(prod.id, -1);
         card.querySelector('.btn-sumar-cant').onclick = () => cambiarCantidadSeleccionada(prod.id, 1);
         
+        const inputCantCard = card.querySelector('.input-cant-card');
+        inputCantCard.onchange = (e) => actualizarCantidadSeleccionadaDirecta(prod.id, e.target.value);
+
+        // Agregar al Carrito
         card.querySelector('.btn-agregar').onclick = () => agregarAlCarrito(prod);
 
         contenedor.appendChild(card);
     });
 }
 
-
 function cambiarCantidadSeleccionada(id, cambio) {
     const actual = cantidadesSeleccionadas[id] || 1;
     cantidadesSeleccionadas[id] = Math.max(1, actual + cambio);
+    renderizarProductos();
+}
+
+function actualizarCantidadSeleccionadaDirecta(id, valor) {
+    const num = parseInt(valor, 10);
+    cantidadesSeleccionadas[id] = (isNaN(num) || num < 1) ? 1 : num;
     renderizarProductos();
 }
 
@@ -352,177 +380,202 @@ async function toggleAgotado(id, nuevoEstado) {
     }
 }
 
-// Carrito
+/* ==========================================================================
+   CARRITO DE COMPRAS Y LOCAL STORAGE (EN 2 PASOS)
+   ========================================================================== */
 
 function agregarAlCarrito(prod) {
-    if (!prod || prod.agotado) return;
-
-    const id = prod.id;
-    const cantAAgregar = cantidadesSeleccionadas[id] || 1;
-
-    if (carrito[id]) {
-        carrito[id].cantidad += cantAAgregar;
+    if (prod.agotado) return mostrarToast("Producto agotado", "error");
+    const cant = cantidadesSeleccionadas[prod.id] || 1;
+    if (carrito[prod.id]) {
+        carrito[prod.id].cantidad += cant;
     } else {
-        carrito[id] = { producto: prod, cantidad: cantAAgregar };
+        carrito[prod.id] = { producto: prod, cantidad: cant };
     }
-
-    cantidadesSeleccionadas[id] = 1;
-    actualizarCarritoUI();
+    cantidadesSeleccionadas[prod.id] = 1;
     renderizarProductos();
-    mostrarToast(`Agregado: ${prod.nombre}`, "success");
+    actualizarCarritoUI();
+    mostrarToast(`Añadido: ${prod.nombre}`, "success");
 }
 
 function cambiarCantidadCarrito(id, cambio) {
-    if (!carrito[id]) return;
-    carrito[id].cantidad += cambio;
-    if (carrito[id].cantidad <= 0) {
-        delete carrito[id];
+    if (carrito[id]) {
+        carrito[id].cantidad += cambio;
+        if (carrito[id].cantidad <= 0) {
+            delete carrito[id];
+        }
+        actualizarCarritoUI();
     }
+}
+
+function actualizarCantidadCarritoDirecta(id, valor) {
+    const num = parseInt(valor, 10);
+    if (carrito[id]) {
+        carrito[id].cantidad = (isNaN(num) || num < 1) ? 1 : num;
+        actualizarCarritoUI();
+    }
+}
+
+function eliminarItemCarrito(id) {
+    if (carrito[id]) {
+        delete carrito[id];
+        actualizarCarritoUI();
+        mostrarToast("Producto eliminado del carrito", "success");
+    }
+}
+
+function vaciarCarrito() {
+    carrito = {};
     actualizarCarritoUI();
-    renderizarProductos();
+    irAlPaso(1);
+    mostrarToast("Carrito vaciado", "success");
+}
+
+function guardarCarritoEnStorage() {
+    try {
+        localStorage.setItem('carrito_ditico', JSON.stringify(carrito));
+    } catch (e) {
+        console.warn("No se pudo guardar el carrito en LocalStorage", e);
+    }
+}
+
+function cargarCarritoDeStorage() {
+    try {
+        const data = localStorage.getItem('carrito_ditico');
+        if (data) {
+            carrito = JSON.parse(data);
+            actualizarCarritoUI();
+        }
+    } catch (e) {
+        console.warn("Error al cargar el carrito de LocalStorage", e);
+    }
+}
+
+function irAlPaso(paso) {
+    const paso1 = document.getElementById('paso-1-carrito');
+    const paso2 = document.getElementById('paso-2-carrito');
+    const titulo = document.getElementById('titulo-paso-carrito');
+
+    if (paso === 2) {
+        if (Object.keys(carrito).length === 0) {
+            return mostrarToast("El carrito está vacío", "error");
+        }
+        if (paso1) paso1.style.display = 'none';
+        if (paso2) paso2.style.display = 'flex';
+        if (titulo) titulo.innerText = "📍 Datos y Pago (Paso 2 de 2)";
+        pasoActualCarrito = 2;
+    } else {
+        if (paso2) paso2.style.display = 'none';
+        if (paso1) paso1.style.display = 'flex';
+        if (titulo) titulo.innerText = "🛒 Mi Carrito (Paso 1 de 2)";
+        pasoActualCarrito = 1;
+    }
+}
+
+function togglePanelCarrito() {
+    const panel = document.getElementById('panel-carrito');
+    if (panel) {
+        panel.classList.toggle('activo');
+        if (panel.classList.contains('activo')) {
+            irAlPaso(1);
+        }
+    }
 }
 
 function actualizarCarritoUI() {
     const lista = document.getElementById('lista-carrito-items');
     const contador = document.getElementById('contador-carrito');
     const contenedorTotales = document.getElementById('resumen-totales-carrito');
-    if (!lista || !contador || !contenedorTotales) return;
+    const contenedorTotalesFinal = document.getElementById('resumen-totales-final');
+    if (!lista || !contador) return;
 
     lista.innerHTML = '';
     let totalUSD = 0;
     let totalItems = 0;
 
-    Object.keys(carrito).forEach(id => {
-        const item = carrito[id];
-        const prod = item.producto;
-        const cant = item.cantidad;
+    const keys = Object.keys(carrito);
 
-        const esMayorista = prod.cant_min_mayorista > 0 && cant >= prod.cant_min_mayorista;
-        const precioUnitario = esMayorista ? (prod.precio_mayorista || prod.precio) : prod.precio;
-        const subtotalUSD = precioUnitario * cant;
+    if (keys.length === 0) {
+        lista.innerHTML = '<p style="text-align:center; padding:30px; color:#888;">El carrito está vacío</p>';
+        irAlPaso(1);
+    } else {
+        keys.forEach(id => {
+            const item = carrito[id];
+            const prod = item.producto;
+            const cant = item.cantidad;
 
-        totalUSD += subtotalUSD;
-        totalItems += cant;
+            const esMayorista = prod.cant_min_mayorista > 0 && cant >= prod.cant_min_mayorista;
+            const precioUnitario = esMayorista ? (prod.precio_mayorista || prod.precio) : prod.precio;
+            const subtotalUSD = precioUnitario * cant;
 
-        const div = document.createElement('div');
-        div.className = 'item-carrito';
-        div.innerHTML = `
-            <div class="item-carrito-info">
-                <h4>${prod.nombre} ${esMayorista ? '🏷️ (May)' : ''}</h4>
-                <p>Ref: ${prod.referencia || 'N/A'}</p>
-                <p>$${precioUnitario.toFixed(2)} x ${cant} = <b>$${subtotalUSD.toFixed(2)}</b></p>
-            </div>
-            <div class="selector-cantidad">
-                <button onclick="cambiarCantidadCarrito('${id}', -1)">-</button>
-                <span>${cant}</span>
-                <button onclick="cambiarCantidadCarrito('${id}', 1)">+</button>
-            </div>
-        `;
-        lista.appendChild(div);
-    });
+            totalUSD += subtotalUSD;
+            totalItems += cant;
+
+            const div = document.createElement('div');
+            div.className = 'item-carrito';
+            
+            div.innerHTML = `
+                <div class="item-carrito-info" style="flex:1;">
+                    <h4 style="margin:0 0 4px 0;">${prod.nombre} ${esMayorista ? '🏷️ (May)' : ''}</h4>
+                    <p style="margin:0; font-size:0.8rem; color:#666;">Ref: ${prod.referencia || 'N/A'}</p>
+                    <p style="margin:0; font-size:0.88rem;">$${Number(precioUnitario).toFixed(2)} x ${cant} = <b>$${subtotalUSD.toFixed(2)}</b></p>
+                </div>
+
+                <div class="selector-cantidad" style="display:flex; align-items:center; gap:4px;">
+                    <button class="btn-restar-cart">-</button>
+                    <input type="number" class="input-cant-cart" value="${cant}" min="1" style="width:40px; text-align:center; padding:2px; border:1px solid #ccc; border-radius:4px; font-weight:bold;">
+                    <button class="btn-sumar-cart">+</button>
+                </div>
+
+                <button class="btn-eliminar-item" title="Quitar producto" style="background:none; border:none; color:#ff4757; font-size:1.2rem; cursor:pointer; padding:0 4px; font-weight:bold;">&times;</button>
+            `;
+
+            div.querySelector('.btn-restar-cart').onclick = () => cambiarCantidadCarrito(id, -1);
+            div.querySelector('.btn-sumar-cart').onclick = () => cambiarCantidadCarrito(id, 1);
+            div.querySelector('.input-cant-cart').onchange = (e) => actualizarCantidadCarritoDirecta(id, e.target.value);
+            div.querySelector('.btn-eliminar-item').onclick = () => eliminarItemCarrito(id);
+
+            lista.appendChild(div);
+        });
+    }
 
     const totalBS = totalUSD * tasaBCV;
     contador.innerText = totalItems;
 
-    contenedorTotales.innerHTML = `
-        <div><span>Subtotal USD:</span> <b>$${totalUSD.toFixed(2)}</b></div>
-        <div><span>Total estimado Bs:</span> <b>Bs ${totalBS.toFixed(2)}</b></div>
+    const htmlTotales = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Subtotal USD:</span> <b>$${totalUSD.toFixed(2)}</b></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Total estimado Bs:</span> <b>Bs ${totalBS.toFixed(2)}</b></div>
     `;
 
-    // Persistir el estado actualizado en el navegador
+    if (contenedorTotales) {
+        contenedorTotales.innerHTML = htmlTotales + (keys.length > 0 ? '<button onclick="vaciarCarrito()" style="width:100%; background:#ff4757; color:white; border:none; padding:6px; border-radius:6px; cursor:pointer; font-weight:bold; margin-top:6px; font-size:0.8rem;">🗑️ Vaciar Carrito</button>' : '');
+    }
+
+    if (contenedorTotalesFinal) {
+        contenedorTotalesFinal.innerHTML = htmlTotales;
+    }
+
     guardarCarritoEnStorage();
 }
 
-function togglePanelCarrito() {
-    const panel = document.getElementById('panel-carrito');
-    if (panel) panel.classList.toggle('activo');
-}
-
-// Cargar carrito guardado al iniciar
-function cargarCarritoGuardado() {
-    const guardado = localStorage.getItem('ditico_carrito');
-    if (guardado) {
-        try {
-            carrito = JSON.parse(guardado);
-            actualizarCarritoUI();
-        } catch (e) {
-            console.error("Error al cargar carrito guardado:", e);
-        }
-    }
-}
-
-// Guardar carrito en localStorage
-function guardarCarritoLocal() {
-    localStorage.setItem('ditico_carrito', JSON.stringify(carrito));
-}
-
-// Modificación en actualizarCarritoUI para incluir persistencia
-const _actualizarCarritoUIOriginal = actualizarCarritoUI;
-actualizarCarritoUI = function() {
-    _actualizarCarritoUIOriginal();
-    guardarCarritoLocal();
-};
-
-// Vaciado post-envío
-function vaciarCarrito() {
-    carrito = {};
-    actualizarCarritoUI();
-    renderizarProductos();
-    document.getElementById('cliente-nombre').value = '';
-    document.getElementById('cliente-telefono').value = '';
-    document.getElementById('cliente-direccion').value = '';
-}
-
-// Guardar el estado actual del carrito en localStorage
-function guardarCarritoEnStorage() {
-    try {
-        localStorage.setItem('ditico_carrito', JSON.stringify(carrito));
-    } catch (e) {
-        console.error("Error al guardar carrito en localStorage:", e);
-    }
-}
-
-// Cargar el carrito guardado al iniciar la aplicación
-function cargarCarritoDeStorage() {
-    try {
-        const carritoGuardado = localStorage.getItem('ditico_carrito');
-        if (carritoGuardado) {
-            carrito = JSON.parse(carritoGuardado);
-            actualizarCarritoUI();
-        }
-    } catch (e) {
-        console.error("Error al leer carrito de localStorage:", e);
-        carrito = {};
-    }
-}
-
-// Vaciar el carrito tanto en memoria como en localStorage
-function vaciarCarrito() {
-    carrito = {};
-    localStorage.removeItem('ditico_carrito');
-    actualizarCarritoUI();
-    renderizarProductos();
-}
-
+/* ENVÍO DE PEDIDO A WHATSAPP */
 function enviarPedidoWhatsApp() {
     const keys = Object.keys(carrito);
     if (keys.length === 0) return mostrarToast("Tu carrito está vacío", "error");
 
-    // Capturar datos del cliente
     const nombre = document.getElementById('cliente-nombre')?.value.trim();
     const telefono = document.getElementById('cliente-telefono')?.value.trim();
     const direccion = document.getElementById('cliente-direccion')?.value.trim();
     const selectPago = document.getElementById('metodo-pago-select');
     const metodoPago = selectPago ? selectPago.value : 'No especificado';
 
-    // Validación de campos requeridos
     if (!nombre || !telefono || !direccion) {
-        return mostrarToast("Por favor completa tu Nombre, Teléfono y Dirección", "error");
+        return mostrarToast("Completa tu Nombre, Teléfono y Dirección", "error");
     }
 
     let mensaje = "🛒 *NUEVO PEDIDO DITICO*\n";
     mensaje += "----------------------------------\n";
-    mensaje += `👤 *Nombre:* ${nombre}\n`;
+    mensaje += `👤 *Cliente:* ${nombre}\n`;
     mensaje += `📞 *Teléfono:* ${telefono}\n`;
     mensaje += `📍 *Dirección:* ${direccion}\n`;
     mensaje += "----------------------------------\n";
@@ -540,13 +593,11 @@ function enviarPedidoWhatsApp() {
         const subtotal = precioUnitario * cant;
         totalUSD += subtotal;
 
-        const imagenUrl = prod.imagen_url || 'Sin imagen';
-
         mensaje += `• *${prod.nombre}*\n`;
         mensaje += `  - Ref: ${prod.referencia || 'N/A'}\n`;
         mensaje += `  - Cantidad: ${cant}\n`;
         mensaje += `  - Subtotal: $${subtotal.toFixed(2)} ${esMayorista ? '(Mayorista)' : ''}\n`;
-        mensaje += `  - Imagen: ${imagenUrl}\n\n`;
+        mensaje += `  - Imagen: ${prod.imagen_url || 'Sin imagen'}\n\n`;
     });
 
     const totalBs = totalUSD * tasaBCV;
@@ -558,11 +609,14 @@ function enviarPedidoWhatsApp() {
     const url = `https://wa.me/584241191218?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
 
-    window.open(url, '_blank');
-vaciarCarrito();
+    vaciarCarrito();
+    togglePanelCarrito();
 }
 
-// Modal Admin
+/* ==========================================================================
+   MODAL DE ADMINISTRACIÓN DE PRODUCTOS
+   ========================================================================== */
+
 function abrirModal() {
     document.getElementById('edit-id').value = '';
     document.getElementById('modal-titulo').innerText = "Agregar Producto";
@@ -657,7 +711,6 @@ async function guardarProducto() {
         cerrarModal();
         cargarProductos();
         cargarCategorias();
-        
     } else {
         mostrarToast("Error al guardar: " + (res.error?.message || 'Revisa la configuración y las políticas de Supabase'), "error");
     }
@@ -697,7 +750,10 @@ function gestionarCategoriasModal() {
     alert(msg);
 }
 
-// Subida de Imagenes
+/* ==========================================================================
+   SUBIDA DE IMÁGENES (DROPZONE & CLIPBOARD)
+   ========================================================================== */
+
 function configurarDropZone() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -778,6 +834,10 @@ async function procesarArchivoImagen(file) {
     }
     mostrarToast("Imagen subida con éxito", "success");
 }
+
+/* ==========================================================================
+   NOTIFICACIONES TOAST
+   ========================================================================== */
 
 function mostrarToast(mensaje, tipo = "success") {
     const container = document.getElementById('toast-container');
