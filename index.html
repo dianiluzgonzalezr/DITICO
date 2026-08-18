@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DITICO | Catálogo y pedidos</title>
     <meta name="theme-color" content="#ff6b9a">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23ff6b9a'/%3E%3Ctext x='50' y='67' text-anchor='middle' font-size='54' font-family='Arial' font-weight='700' fill='white'%3ED%3C/text%3E%3C/svg%3E">
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Pacifico&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23ff6b9a'/%3E%3Ctext x='50' y='67' text-anchor='middle' font-size='54' font-family='VERDANA' font-weight='700' fill='white'%3ED%3C/text%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -57,32 +57,60 @@
     </div>
 
     <div id="panel-carrito" class="panel-carrito">
-        <div class="carrito-header">
-            <h3>Tu Carrito</h3>
-            <span onclick="togglePanelCarrito()" style="cursor:pointer; font-size: 1.5rem;">&times;</span>
-        </div>
-        <div id="lista-carrito-items"></div>
-        <div class="carrito-footer">
-            <div id="resumen-totales-carrito" class="resumen-totales"></div>
-            
-            <div class="pago-selector-container">
-                <label for="metodo-pago-select"><strong>Método de pago preferido:</strong></label>
-                <select id="metodo-pago-select">
-                    <option value="Pago Móvil">Pago Móvil</option>
-                    <option value="Divisas">Divisas</option>
-                    <option value="Bolívares">Bolívares</option>
-                </select>
+    <div class="carrito-header">
+        <span id="titulo-paso-carrito">🛒 Mi Carrito (Paso 1 de 2)</span>
+        <button onclick="togglePanelCarrito()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+    </div>
+
+    <div id="paso-1-carrito" class="paso-carrito-contenido">
+        <div id="lista-carrito-items">
             </div>
 
-            <div class="datos-cliente-carrito" style="margin: 15px 0; display: flex; flex-direction: column; gap: 8px;">
-            <h4>Info de Entrega</h4>
-             <input type="text" id="cliente-nombre" placeholder="Nombre completo *" required style="padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-             <input type="tel" id="cliente-telefono" placeholder="Teléfono / WhatsApp *" required style="padding: 8px; border-radius: 6px; border: 1px solid #ccc;">
-             <textarea id="cliente-direccion" placeholder="Dirección de entrega *" rows="2" style="padding: 8px; border-radius: 6px; border: 1px solid #ccc;"></textarea>
-            </div>
-            <button onclick="enviarPedidoWhatsApp()" class="btn-whatsapp">Enviar pedido por WhatsApp</button>
+        <div class="carrito-footer">
+            <div id="resumen-totales-carrito" class="resumen-totales"></div>
+            <button class="btn-siguiente-paso" onclick="irAlPaso(2)">Continuar con el Pedido ➔</button>
         </div>
     </div>
+
+    <div id="paso-2-carrito" class="paso-carrito-contenido" style="display: none;">
+        <div class="form-datos-entrega">
+            <h3>📍 Datos de Entrega</h3>
+            
+            <div class="form-group-cart">
+                <label for="cliente-nombre">Nombre y Apellido *</label>
+                <input type="text" id="cliente-nombre" placeholder="Ej. María Pérez" required>
+            </div>
+
+            <div class="form-group-cart">
+                <label for="cliente-telefono">Teléfono *</label>
+                <input type="text" id="cliente-telefono" placeholder="Ej. 04121234567" required>
+            </div>
+
+            <div class="form-group-cart">
+                <label for="cliente-direccion">Dirección Exacta *</label>
+                <textarea id="cliente-direccion" rows="2" placeholder="Ej. Calle 3, Edif. A, Apto 2B" required></textarea>
+            </div>
+
+            <div class="pago-selector-container">
+                <label for="metodo-pago-select">Método de Pago *</label>
+                <select id="metodo-pago-select">
+                    <option value="Pago Móvil">Pago Móvil</option>
+                    <option value="Transferencia Bs">Transferencia Bs</option>
+                    <option value="Zelle">Zelle</option>
+                    <option value="Efectivo $">Efectivo ($)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="carrito-footer">
+            <div id="resumen-totales-final" class="resumen-totales"></div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn-atras-paso" onclick="irAlPaso(1)">⬅️ Volver</button>
+                <button class="btn-whatsapp" onclick="enviarPedidoWhatsApp()">📲 Enviar por WhatsApp</button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Login exclusivo para /#admin -->
     <div id="modal-login" class="modal" aria-hidden="true">
